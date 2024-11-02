@@ -1,0 +1,54 @@
+<html>
+    <head>
+        <title>Main</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/post.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'forum' }) %>
+
+        <section id="main">
+            <a href="/forum">Back</a>
+            <div class="post">
+                
+                <h1><%= post.title %></h1>
+                <h3><%= post.username %></h3>
+                <h3><%= post.created_time %></h3>
+                <form action="/voteContent" method="GET">
+                    <input type="hidden" name="type" value="post">
+                    <input type="hidden" name="id" value="<%= post.id %>">
+                    <input type="hidden" name="post_id" value="<%= post.id %>">
+                    <button type="submit" name="vote" value="up" class="upvote">+</button>
+                    <h5><%= post.aura %></h5>
+                    <button type="submit" name="vote" value="down" class="downvote">-</button>
+                </form>          
+                <p><%= post.content %></p>
+            </div>
+            <hr>
+            <div class="comments">
+                <form action="/postComment" method="POST">
+                    <input name="content">
+                    <input name="post_id" value="<%= post.id %>" hidden>
+                    <button type="submit">Post comment</button>
+                </form>
+                <% for (let i = 0; i < comments.length; i++) { %>
+                    <div class="post">
+                        <h3><%= comments[i].content %></h2>
+                        <h5><%= comments[i].username %></h2>
+                        <form action="/voteContent" method="GET">
+                            <input type="hidden" name="post_id" value="<%= post.id %>">
+                            <input type="hidden" name="type" value="comment">
+                            <input type="hidden" name="id" value="<%= comments[i].id %>">
+                            <button type="submit" name="vote" value="up" class="upvote">+</button>
+                            <h5><%= comments[i].aura %></h5>
+                            <button type="submit" name="vote" value="down" class="downvote">-</button>
+                        </form>  
+                        <h6><%= comments[i].created_time %></h2>
+                    </div>
+                <% } %>
+            </div>
+
+        </section>
+    </body>
+</html>

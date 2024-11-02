@@ -1,0 +1,57 @@
+{
+    "env": {
+      "browser": true,
+      "es6": true,
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 2021,
+      "sourceType": "module"
+    },
+    "rules": {
+      // Possible Errors
+      "no-console": "warn",
+      "no-undef": "error",
+      "no-extra-semi": "error",
+      "no-dupe-args": "error",
+      "no-unreachable": "error",
+  
+      // Best Practices
+      "eqeqeq": ["error", "always"],
+      "curly": "error",
+      "default-case": "warn",
+      "no-alert": "warn",
+      "no-else-return": "error",
+  
+      // Variables
+      "no-unused-vars": ["error", { "vars": "all", "args": "after-used" }],
+      "no-use-before-define": "error",
+      "no-shadow": "warn",
+  
+      // Stylistic Choices
+      "semi": ["error", "always"],
+      "quotes": ["error", "single"],
+      "indent": ["error", 2],
+      "comma-dangle": ["error", "never"],
+      "brace-style": ["error", "1tbs"],
+      "space-before-function-paren": ["error", "never"],
+  
+      // ES6
+      "no-var": "error",
+      "prefer-const": "error",
+      "arrow-spacing": ["error", { "before": true, "after": true }],
+      "no-duplicate-imports": "error",
+  
+      // Code Complexity
+      "max-depth": ["error", 4],
+      "max-lines": ["warn", { "max": 300, "skipBlankLines": true }],
+      "complexity": ["error", { "max": 10 }],
+  
+      // Code Layout
+      "newline-per-chained-call": ["error", { "ignoreChainWithDepth": 2 }],
+      "eol-last": ["error", "always"],
+      "no-trailing-spaces": "error"
+    }
+  }
+  

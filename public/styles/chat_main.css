@@ -1,0 +1,70 @@
+/* General styles for the Chat page */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Background gradient */
+    color: #e0f7fa; /* Soft cyan for overall text color */
+    font-family: Arial, sans-serif; /* Font style */
+}
+
+nav {
+    width: 200px; /* Width of the sidebar */
+    background-color: #333; /* Dark background for navigation */
+    color: white; /* Text color */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align links at the top */
+    padding: 20px;
+    height: 100%;
+}
+
+/* Heading styles */
+h3 {
+    color: #b0e0e6; /* Light steel blue for message */
+    margin: 15px 0; /* Spacing around message */
+}
+
+h4 {
+    color: #e0f7fa; /* Light color for instructions */
+}
+
+/* Link styles */
+a {
+    color: #74b4e1; /* Light blue for links */
+    text-decoration: none; /* Remove underline */
+}
+
+a:hover {
+    text-decoration: underline; /* Underline on hover */
+}
+
+/* Main section styles */
+#main {
+    padding: 20px; /* Padding for the main section */
+}
+
+/* Room styles */
+.room {
+    background-color: rgba(255, 255, 255, 0.1); /* Slightly transparent dark background */
+    padding: 15px; /* Padding inside room boxes */
+    border-radius: 5px; /* Rounded corners */
+    margin-bottom: 10px; /* Space between room boxes */
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
+}
+
+.room:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* Lighter on hover */
+}
+
+/* Room title styles */
+.room h5 {
+    margin: 0; /* Remove default margin */
+    color: #e0f7fa; /* Light text color for room titles */
+}
+
+/* Room link styles */
+.room h5 a {
+    color: #74b4e1; /* Light blue for room links */
+}
+
+.room h5 a:hover {
+    text-decoration: underline; /* Underline on hover */
+}

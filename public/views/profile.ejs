@@ -1,0 +1,32 @@
+<html>
+<head>
+    <title>User Account</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/account.css">
+</head>
+<body>
+    <nav role="main">
+        <a href="/">main</a>
+        <a href="/forum">forum</a>
+        <a href="/directMessagesMain">direct messages</a>
+        <a href="/chat_main" active>chat rooms</a>
+    </nav>
+    <section id="main">
+        <div class="account-info">
+            <h1>User Account: <%= username %></h1>
+            <% if (pfp_blob) { %>
+                <img src="data:image/png;base64,<%= pfp_blob.toString('base64') %>" alt="Profile Picture" class="profile-pic">
+            <% } else { %>
+                <img src="/path/to/default/image.png" alt="Default Profile Picture" class="profile-pic">
+            <% } %>
+            <p><strong>Aura:</strong> <%= aura %></p>
+            <p><strong>Created At:</strong> <%= created_at %></p>
+            <p><strong>Email:</strong> <%= email %></p>
+            <p><strong>Tags:</strong> <%= tags %></p>
+            <p><strong>About:</strong> <%= about %></p>
+            <p><strong>Global Discovery:</strong> <%= global ? "Yes" : "No" %></p>
+            <p><strong>Admin:</strong> <%= admin ? "Yes" : "No" %></p>
+        </div>
+    </section>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <title>Main</title>
+        <link rel="stylesheet" href="/styles/main.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'main' }) %>
+        <section id="main">
+            <h1>Hello! Welcome to . You are an administrator.</h1>
+            <h3>Session details:</h3>
+            <h5><%= data.username %></h5>
+            <h5>Admin: <%= data.admin %></h5>
+            <h5>Last paid: <%= data.last_paid %></h5>
+
+            <textarea style="width:1055; height:736"><%= log %></textarea>
+
+
+
+        </section>
+    </body>
+</html>

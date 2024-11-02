@@ -1,0 +1,20 @@
+<html>
+    <head>
+        <title>Join private room</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/join_private_room.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'rooms' }) %>
+        <section id="main">
+            <form action="/chatroom" method="GET">
+                <label for="room_id">Enter the ID <strong>or</strong> Title of the private room</label>
+                <input name="room_id" placeholder="id of private room">
+                <input name="room_title" placeholder="title of private room">
+                <button type="submit">GO</button>
+            </form>
+        </section>
+
+    </body>
+</html>
+

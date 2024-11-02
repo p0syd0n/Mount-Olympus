@@ -1,0 +1,52 @@
+/* General styles for the account page */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8)); /* Background gradient */
+    color: #e0f7fa; /* Soft cyan for text */
+    font-family: Arial, sans-serif; /* Font style */
+    margin: 0; /* Remove default margin */
+}
+
+/* Navigation styles */
+nav {
+    background: rgba(50, 50, 50, 0.9); /* Dark background for nav */
+    padding: 10px; /* Padding for navigation */
+}
+
+/* Navigation links */
+nav a {
+    color: #e0f7fa; /* Link color */
+    margin-right: 15px; /* Space between links */
+    text-decoration: none; /* Remove underline */
+}
+
+/* Main section styles */
+#main {
+    display: flex; /* Flexbox for layout */
+    justify-content: center; /* Center content */
+    align-items: center; /* Align items */
+    flex-direction: column; /* Column layout */
+    padding: 20px; /* Padding around main section */
+}
+
+/* Account information container */
+.account-info {
+    background: rgba(255, 255, 255, 0.1); /* Slightly transparent background */
+    padding: 20px; /* Padding inside container */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    width: 300px; /* Fixed width */
+    text-align: center; /* Center text */
+}
+
+/* Profile picture styles */
+.profile-pic {
+    border-radius: 50%; /* Round profile picture */
+    width: 100px; /* Fixed width for profile picture */
+    height: 100px; /* Fixed height for profile picture */
+    margin-bottom: 15px; /* Space below profile picture */
+}
+
+/* Paragraph styles */
+p {
+    margin: 10px 0; /* Space above and below paragraphs */
+}

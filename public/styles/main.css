@@ -1,0 +1,60 @@
+/* Reset some default styling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  display: flex;
+  height: 100vh; /* Full viewport height */
+  background-color: #0d0d0d; /* Very dark background */
+}
+
+/* Style the navigation bar */
+nav {
+  width: 200px; /* Width of the sidebar */
+  background-color: #1a1a1a; /* Dark sidebar background */
+  color: #b0e0e6; /* Light steel blue text color */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Align links at the top */
+  padding: 20px;
+  height: 100%;
+}
+
+/* Style the navigation links */
+nav a {
+  color: #b0e0e6; /* Light steel blue color */
+  text-decoration: none;
+  margin: 10px 0; /* Spacing between links */
+  padding: 10px;
+  display: block; /* Makes the links take up the full width */
+  border-radius: 5px;
+  transition: background-color 0.3s, transform 0.2s; /* Smooth transitions */
+}
+
+nav a:hover {
+  background-color: #2c2c2c; /* Slightly lighter on hover */
+  transform: translateY(-2px); /* Slight lift effect */
+}
+
+/* Active link style */
+nav a.active {
+  background-color: #3e3e3e; /* Darker background for active link */
+  color: #ffffff; /* Change text color for better contrast */
+  font-weight: bold; /* Bold font for active link */
+}
+
+/* Style the main content area */
+#main {
+  flex-grow: 1; /* This makes the main content area take up the remaining space */
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(255, 0, 0, 0.5)); /* Darker gradient with hints of blue and red */
+  color: #e0f7fa; /* Soft cyan text for readability */
+  overflow-y: auto;
+  border-top-left-radius: 10px; /* Soft corners for a modern touch */
+  border-top-right-radius: 10px; /* Soft corners for a modern touch */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); /* Deeper shadow for contrast */
+}

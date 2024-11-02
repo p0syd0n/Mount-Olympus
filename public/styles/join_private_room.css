@@ -1,0 +1,65 @@
+/* General styles for the Join Private Room page */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Background gradient */
+    color: #e0f7fa; /* Soft cyan for overall text color */
+    font-family: Arial, sans-serif; /* Font style */
+}
+
+/* Navigation styles */
+nav {
+    width: 200px; /* Width of the sidebar */
+    background-color: #333; /* Dark background for navigation */
+    color: white; /* Text color */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align links at the top */
+    padding: 20px;
+    height: 100%;
+}
+
+/* Main section styles */
+#main {
+    padding: 20px; /* Padding for the main section */
+}
+
+/* Label styles */
+label {
+    display: block; /* Block display for label */
+    margin-bottom: 10px; /* Space below label */
+    color: #b0e0e6; /* Light steel blue for label text */
+}
+
+/* Input field styles */
+input {
+    padding: 10px; /* Padding inside input */
+    width: calc(100% - 22px); /* Full width, accounting for padding */
+    border: none; /* No border */
+    border-radius: 5px; /* Rounded corners */
+    background-color: rgba(255, 255, 255, 0.1); /* Slightly transparent background */
+    color: #e0f7fa; /* Text color */
+    margin-bottom: 15px; /* Space below input */
+}
+
+/* Button styles */
+button {
+    background-color: rgba(204, 0, 0, 0.8); /* Pleasant dark red for buttons */
+    color: #fff; /* White text */
+    border: none; /* No border */
+    padding: 10px 15px; /* Padding inside buttons */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s ease; /* Smooth transition for background color */
+}
+
+button:hover {
+    background-color: rgba(204, 0, 0, 1); /* Slightly brighter dark red on hover */
+}
+
+/* Form submission button */
+form {
+    margin-top: 15px; /* Space above the form */
+}
+
+form button {
+    width: 100%; /* Full width for the submit button */
+}

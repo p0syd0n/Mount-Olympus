@@ -1,0 +1,32 @@
+<html>
+    <head>
+        <title>Direct Messages: select a conversation</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/direct_messages_main.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'direct_messages' }) %>
+
+
+        <noscript>
+            <h3>Hello. You've got javascript disabled. However, for the E2E aspect of direct messaging here, you'll need to enable javascript.</h3>
+            <h4>If javascript was disabled, the contents of your messages would be submitted to the server in plaintext (over HTTPS). I don't log/record/look at messages, and don't want to. </h4>
+            <h4>first of all, you shouldn't trust me about that. trust no one. second, However, in the unlikely case that someone unauthorized gains access to the server, they could log messages and keep track of you.</h4>
+            <h5>(There are measures implemented to prevent unauthorized visitors from accessing valueable database information). <a href="/security">More information</a></h5>
+            </h4>
+        </noscript>
+        <section id="main">
+            <h2>Enter the information of who you want to message:</h5>
+                <h2>You user id is: <%= user_id %></h5>
+            <form action="/goToDirectMessages" method="GET">
+                <p>Username: </p>
+                <input name="username">
+                <p>Or user id:</p>
+                <input name="user_id">
+                <button type="submit">GO</button>
+            </form>
+        </section>
+
+    </body>
+</html>

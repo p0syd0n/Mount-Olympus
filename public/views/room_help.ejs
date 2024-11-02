@@ -1,0 +1,41 @@
+<html>
+    <head>
+        <title>Room help</title>
+    </head>
+    <body>
+        <h1>ROOMS</h1>
+        <h2>How to create a room?</h2>
+        <p> TO create a room go to <a href="/createRoom">/createRoom</a></p>
+        <p>The options you have are: title(string), password(string), and private(bool)(true/false).</p>
+        <p>The title is the name of the group chat. Password is the password = if the password exists, your room will not be shown in the global list. To have a public room, leave the password field empty.</p>
+        
+        <p>You will receiver an AES key when creating your chat room. This will be used to encrypt and decrypt the messages you send, so that the server can't read them.</p>
+        <p>When you enter your chat room, you can either request they key - or you can paste it manually, if you have it.</p>
+        <p>Requesting the key will send a request to all other clients in the chat room.</p>
+
+        <p>If you have marked the room as locked, the server will drop all requests for the key.</p>
+        <p>In other words, if you mark the room as <i>locked</i>, you will have to manually give out the room key. This is inconvenient, but more safe.</p>
+        <p>A public room <strong>can</strong>> be <i>locked</i>.</p>
+        <p>A private room <strong>can</strong> be <i>not locked(unlocked? lol).</i></p>
+        <h2>How do rooms work?</h2>
+        <p>Rooms are E2E encrypted. The room key is never sent to the server, as you can verify by checking the javascript on the page.</p>
+        <p>When you join a room, you have two buttons: request key and connect</p>
+        <p>iF you know the room key, you can simply paste it into the text area.</p>
+        <p>If you don't know the room key, you can request it from others in the room. </p>
+        <p>Requesting the room key will send an event to the server, and the server will forward the event to all clients in the room.</p>
+        <p>The clients, on their end, will encrypt the room key with YOUR public key, send it to the server.</p>
+        <p>The server will forward you the room key, and the room key will automatically be decrypted using your private key (WHICH YOU MUST SUPPLY IN THE INTERFACE).</p>
+        
+        
+        
+        <p>You have obtained the room key.</p>
+        <p>If you do not know the key, and there is noone in the room/the room is locked, there is no way for you to get the key</p>
+        <p>For ease of access, you may store the room key in localstorage. This way, it will be auto-filled when you access the room.</p>
+        <p>In localstorage, the key must be the title of the room, and the value must be the key.</p>
+        <p>The same is with your private key (private_key: private_key) (this will also work in DM's). However, using local storage decreases security.</p>
+
+        <h3>YOu have the key. Now what?</h3>
+        <p>Now, you can connect to the room by clicking "connect".</p>
+        <p>Messages will load and you will be able to send messages. Enjoy!</p>
+    </body>
+</html>

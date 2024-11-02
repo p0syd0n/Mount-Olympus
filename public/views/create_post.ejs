@@ -1,0 +1,30 @@
+<html>
+    <head>
+        <title>Create Post</title>
+        <link rel="stylesheet" href="/styles/main.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'forum' }) %>
+
+        <section id="main">
+            <p style="color: red"><% message %></p>
+            <h1>Create Post</h1>
+            <form action="/executeCreatePost" method="POST">
+                <input name="title" placeholder="title">
+                <br>
+                <textarea name="content" type="text" placeholder="content"></textarea>
+                <br>
+                <label for="topics">Choose a topic:</label>
+                <select name="topic">
+                  <option value="0">General</option>
+                  <option value="technology">Feature 2</option>
+                  <option value="meta">Feature 3</option>
+                </select>
+                <label for="tags">Tags: (comma seperated)</label>
+                <input name="tags" placeholder="tag1, tag2, tag3">
+                <button type="submit">Post</button>
+            </form>
+        </section>
+    </body>
+</html>

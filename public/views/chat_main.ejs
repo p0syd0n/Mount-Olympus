@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>Chat</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/chat_main.css">
+        <script src="/scripts/chat.js" integrity="sha384-Vccun4M6BFoAdKh3tS4hE1PkZLH2iOFv/hHi61pMngLHbQ3CN0ZrB+URByNBDo9L" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'rooms' }) %>
+
+
+
+        <section id="main">
+            <h3 style="color: green"><%= message %></h3>
+            <h4>to join a private room, go <a href="/join_private_room">here.</a> To join a private room, you need to know it's ID or title.</h4>
+            <a href="/createRoom">Create room</a>
+            <% for (let i = 0; i < rooms.length; i++) { %>
+                <div class="room">
+                    <h5><a href="/chatroom?room_id=<%= rooms[i].id %>"><%= rooms[i].title %> : <%= rooms[i].id %> </a></h5>
+                </div>
+            <% } %>
+        </section>
+    </body>
+</html>

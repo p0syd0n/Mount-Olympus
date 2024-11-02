@@ -1,0 +1,46 @@
+/* Reset some default styling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  height: 100vh; /* Full viewport height */
+}
+
+/* Style the navigation bar */
+nav {
+  width: 200px;          /* Width of the sidebar */
+  background-color: #333; /* Dark background */
+  color: white;           /* Text color */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Align links at the top */
+  padding: 20px;
+  height: 100%;
+}
+
+/* Style the navigation links */
+nav a {
+  color: white;
+  text-decoration: none;
+  margin: 10px 0; /* Spacing between links */
+  padding: 10px;
+  display: block; /* Makes the links take up the full width */
+  border-radius: 5px;
+}
+
+nav a:hover {
+  background-color: #575757; /* Slightly lighter on hover */
+}
+
+/* Style the main content area */
+#main {
+  flex-grow: 1; /* This makes the main content area take up the remaining space */
+  padding: 20px;
+  background-color: #f4f4f4;
+  overflow-y: auto;
+}

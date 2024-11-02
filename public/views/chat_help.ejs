@@ -1,0 +1,21 @@
+<html>
+    <head>
+        <title>chat help</title>
+        <link rel="stylesheet" href="/styles/main.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'rooms' }) %>
+
+        <h1>Chat instrictions</h1>
+        <p>Rundown of the chat function:</p>
+        <p>3 text boxes at the top:</p>
+        <p>The 3 text boxes at the top are slots for public and private RSA keys. The first two will arleady be filled in, for your convinience. THey are the other persons public key and your public key. The third box is for your private key. You need to supply this.</p>
+        <p>your private key is not being sent to the server. It is being used to decrypt messages sent to you and to sign messages you are sending.</p>
+        <p>To use: Paste your private key. Click "connect". This will establish the connection. You will now be subscribed to messages.</p>
+        <p>Now, you can type messages and send them.</p>
+        <br>
+        <br>
+        <br>
+        <p>in other words: paste your private key. hit "connect". Send messages using button.</p>
+    </body>
+</html>

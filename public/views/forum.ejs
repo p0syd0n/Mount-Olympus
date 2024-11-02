@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <title>Main</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/forum.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'forum' }) %>
+        <section id="main">
+            <p class="message"><%= message %></p>
+            <p class="message_success"><%= message_success %></p>
+            <form action="/createPost">
+                <button type="submit">Create Post</button>
+            </form>
+            <br>
+            <form action="/forum", method="GET">
+                <label for="topics">Choose a topic:</label>
+                <select name="topic_id">
+                  <option value="0">General</option>
+                </select> 
+                <label for="order">Choose a sorting order:</label>
+                <select name="order">
+                  <option value="desc_aura">Aura: most to least</option>
+                  <option value="asc_aura">Aura: lest to most</option>
+                  <option value="latest">Latest</option>
+                  <option value="oldest">Oldest</option>
+                </select> 
+                <button type="submit">Apply</button>
+            </form>
+
+            <% for (let i = 0; i < posts.length; i++) { %>
+                <div class="post">
+                    <%= posts[i].id %>
+                    <h3><a href="/post?id=<%= posts[i].id %>"><%= posts[i].title %></a></h3>
+                    <h2><%= posts[i].username %></h2>
+                    <h2><%= posts[i].aura %></h2>
+                    <h2><%= posts[i].time_created %></h2>
+                </div>
+            <% } %>
+
+        </section>
+    </body>
+</html>

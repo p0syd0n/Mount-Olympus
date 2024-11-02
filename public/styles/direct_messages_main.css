@@ -1,0 +1,84 @@
+/* General styles for the Direct Messages page */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Background gradient */
+    color: #e0f7fa; /* Soft cyan for overall text color */
+}
+
+nav {
+    width: 200px; /* Width of the sidebar */
+    background-color: #333; /* Dark background for navigation */
+    color: white; /* Text color */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Align links at the top */
+    padding: 20px;
+    height: 100%;
+}
+
+/* Heading styles */
+h2 {
+    color: #b0e0e6; /* Light steel blue for headings */
+    margin: 15px 0; /* Spacing around headings */
+}
+
+h3, h4, h5 {
+    color: #d1d1d1; /* Lighter gray for subheadings */
+}
+
+/* Noscript section styles */
+noscript {
+    background-color: rgba(255, 0, 0, 0.1); /* Light red background for warning */
+    padding: 15px; /* Padding around the noscript message */
+    border-radius: 5px; /* Rounded corners */
+    color: #e0f7fa; /* Match text color */
+}
+
+/* Main section styles */
+#main {
+    padding: 20px; /* Padding for the main section */
+}
+
+/* Form styles */
+form {
+    display: flex; /* Flexbox layout for alignment */
+    flex-direction: column; /* Stack items vertically */
+}
+
+form p {
+    margin: 10px 0 5px; /* Spacing around labels */
+    color: #e0f7fa; /* Text color for labels */
+}
+
+/* Input field styles */
+form input[name="username"],
+form input[name="user_id"] {
+    padding: 10px; /* Padding for a comfortable input size */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+    border-radius: 5px; /* Rounded corners */
+    background-color: #1f1f1f; /* Darker background for input */
+    color: #e0f7fa; /* Light cyan text for input */
+    margin-bottom: 15px; /* Space below each input */
+    transition: border-color 0.3s ease; /* Smooth border transition */
+}
+
+form input[name="username"]:focus,
+form input[name="id"]:focus {
+    outline: none; /* Remove default outline */
+    border-color: #74b4e1; /* Light blue border on focus */
+}
+
+/* Button styles */
+form button {
+    background-color: rgba(255, 255, 255, 0.1); /* Dark background for button */
+    color: #e0f7fa; /* Light text color */
+    border: none; /* No border */
+    padding: 10px 15px; /* Padding for button size */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+}
+
+form button:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
+    transform: translateY(-2px); /* Slight lift effect on hover */
+}

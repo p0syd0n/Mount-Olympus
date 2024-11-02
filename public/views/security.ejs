@@ -1,0 +1,55 @@
+<html>
+    <head>
+        <title>Security</title>
+    </head>
+    <body>
+        <noscript>
+            Youve got javascript disabled. This is good. THere is a section about that later.
+        </noscript>
+        <h1>
+            Security
+        </h1>
+        <h2>
+            Storage
+        </h2>
+        <p>All data is stored in a secure database. Data inside the database is encrypted with quantum resistant symmetrical encryption. The key is not stored on the disk or in memory.</p>
+        <p> Therefore, the database will not be able to be accessed as a file. It will also not be accessible by changing server code to print database contents - an unauthorized user would not be able to provide the key on server startup, and decryption will fail.</p>
+
+        <h2>
+            Forum
+        </h2>
+        <p>Forum data is stored and generically encrypted, with no excessive measures. Forum form data is send in plaintext (over HTTPS) to the server.</p>
+        <h2>
+            Direct Messaging
+        </h2>
+        <p>Direct Messages are end to end encrypted. </p>
+        <br>
+        <p><strong>What does that mean??</strong></p>
+        <p>End to end encryption is basically the fact that your data is encrypted on its entire route from you to the receiver. Noone can read a message you send to the other guy, unless the attacker has one of your private keys.</p>
+        <br>
+        <p>So anyway, your data is encrypted and noone can read it unless youre an idiot and leak your private key. Its always possible to regenerate keys <a href="/generateKeypair">here</a>, and updating your account. However, you won't be able to decrypt past messages.</p>
+        <p>Your data is encrypted in your browser, using javascript. ik its bad, but its the ontly option to encrypt your data before it reaches me, apart from doing it manually. if you wanna do it manually, it'd be easier to just use email.</p>
+        <p>RSA is used. libraries used are here:</p>
+        <a href="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js">Code: JSencrypt</a>
+        <a href="https://www.npmjs.com/package/jsencrypt">NPM: JSEncrypt</a>
+        <br>
+        <a href="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js">Code: crypto-js</a>
+        <a href="https://www.npmjs.com/package/crypto-js">NPM: CryptoJS</a>
+        <p>crypto-js is no longer maintained. However, I only use it for its hash function for message signing.</p>
+        <h2>
+            Group chats
+        </h2>
+        <p>Group chats are E2E encrypted.</p>
+        <p>Your messages are encrypted with the room key, which is a base64 representation of an AES256 key. the IV is stored in the ciphertext.</p>
+        <p>The room key never leaves your browser. For this reason, if it is lose (eg, noone keeps it or writes it down) the key and group chat are lost.</p>
+        <p>When you join a room, your client will automatically request the key from other clients in the room. (If the room is "locked", this key request will be dropped by the server).</p>
+        <p>If a room is "locked", the only way to get the key is by having it sent to you by someone else in the group.</p>
+        <h3>Javascript</h3>
+        <p>Javascript is extremely necessary in the group chat functionality. Socket.IO is used as a real-time communication system with the server.</p>
+        <h3>What measures I take to keep you safe</h3>
+        <p>The server implements an extremely strong CSP (eg, no inline js, no js anywhere but where I allow it specifically)</p>
+        <p>No js will be loaded from external servers, except the js I explicitly allow (the libraries).</p>
+        <p>All js that I load is loaded and checked using the <i>integrity</i> attribute. This makes 100% sure that the script has not been tampered with. </p>
+        <p>Lastly, all the js is commented and not obfuscated. feel free to peruse at your leisure. If you spot any vulnerabilities or issues, please contact me - my user id is 0.</p>
+    </body>
+</html>

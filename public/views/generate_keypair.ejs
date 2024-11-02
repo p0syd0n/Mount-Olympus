@@ -1,0 +1,22 @@
+<html>
+    <head>
+        <title>Generate Keypair</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+        <link rel="stylesheet" href="/styles/main.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'logout' }) %>
+        <noscript>
+            <p>Hi! you have javascript disabled. good. However, for chat functionality, you will need to enable it. You can read about the measures I take to protect you <a href="/security">here</a>.</p>
+            <p>Here specifically, javascript is needed to generate your account keypair. The private key does not leave your browser.</p>
+        </noscript>
+        <section id="main" >
+            <p>Public key:</p>
+            <p id="public_key"></p>
+            <p>Private key:</p>
+            <p id="private_key"></p>
+        </section>
+
+        <script src="/scripts/generate_keypair.js" integrity="sha384-GtWsfjKgxtUHK1J2UzkqCXlUpy45rkLaKaOXVtRXHQ6XFyi5ZbXkvugW6vj3k2DX"></script>
+    </body>
+</html>

@@ -1,0 +1,21 @@
+<html>
+    <head>
+        <title>Delete room</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/delete_room.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'delete_room' }) %>
+
+
+
+        <section id="main">
+            <form action="executeDeleteRoom" method="POST">
+                <input name="room_id" placeholder="room id">
+                <p>OR</p>
+                <input name="room_name" placeholder="room name">
+                <button type="submit">GO</button>
+            </form>
+        </section>
+    </body>
+</html>

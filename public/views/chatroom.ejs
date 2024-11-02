@@ -1,0 +1,47 @@
+<html>
+    <head>
+        <title><%= room_title %></title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/chatroom.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'rooms' }) %>
+        <noscript>
+            <p>Hi! you have javascript disabled. good. However, for chat functionality, you will need to enable it. You can read about the measures I take to protect you <a href="/security">here</a>.</p>
+            <p>Here specifically, javascript is needed to connect to the room, receive/send messages, and request/receive the room key.</p>
+        </noscript>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <section id="main">
+            <h1>Welcome to <%= room_title %></h1>
+            <ol>
+                    <li>Paste your private key</li>
+                    <li>Paste the room key, or request it</li>
+                    <li>Connect!</li>
+            </ol>
+            <p id="sender_id" hidden><%= sender_id %></p>
+            <p id="room_title" hidden><%= room_title %></p>
+            <p id="room_id" hidden><%= room_id %></p>
+        
+            <div class="keys-container">
+                <textarea id="public_key" placeholder="PLACE YOUR PUBLIC KEY HERE"><%= sender_public_key %></textarea>
+                <textarea id="private_key" placeholder="PLACE YOUR PRIVATE KEY HERE"></textarea>
+                <textarea id="room_key" placeholder="PLACE ROOM KEY HERE"></textarea>
+            </div>
+        
+            <button id="request_key">Request key</button>
+            <button id="initialize">Connect!</button>
+            <div id="messages"></div>
+        
+            <div id="message-container">
+                <input id="message" placeholder="message here">
+                <button id="sendMessage">Send</button>
+            </div>
+        </section>
+        
+
+    </body>
+    <script src="/scripts/chatroom.js" integrity="sha384-H1pxVvgccmF8D2b2vINBnW395Yl+9DeAifQE7XzJ9gVkmrRICvC6t+IlqhUEEU/O" crossorigin="anonymous"></script>
+</html>
