@@ -2,134 +2,125 @@
 body {
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Background gradient */
     color: #e0f7fa; /* Soft cyan for overall text color */
+    font-family: Arial, sans-serif; /* Use a legible font */
 }
 
+/* Post Styles */
+.post {
+    padding: 20px; /* Add padding for the post */
+    border-radius: 10px; /* Rounded corners for the post */
+    background-color: rgba(0, 0, 0, 0.8); /* Slightly darker background for post */
+    margin-bottom: 20px; /* Space below each post */
+}
+
+.profile-header {
+    display: flex; /* Flexbox for profile picture and post info */
+    align-items: center; /* Center items vertically */
+}
+
+.profile-pic {
+    width: 50px; /* Adjust size for profile picture */
+    height: 50px; /* Consistent height */
+    border-radius: 50%; /* Circular profile picture */
+    margin-right: 15px; /* Space between profile picture and text */
+}
+
+/* Post title styles */
 .post h1 {
-    font-size: 24px; /* Larger font size for title */
-    margin-bottom: 10px; /* Space below the title */
+    font-size: 22px; /* Slightly smaller title */
+    margin: 5px 0; /* Margin adjustments */
     color: #b0e0e6; /* Light steel blue for title */
 }
 
+/* Post info styles */
 .post h3 {
-    font-size: 16px; /* Smaller font size for username and timestamp */
+    font-size: 14px; /* Smaller font size for username and timestamp */
     color: #d1d1d1; /* Lighter gray for username and timestamp */
-    margin-bottom: 5px; /* Space below each username and timestamp */
 }
 
-.post p {
+/* Post content */
+.post-content {
     line-height: 1.6; /* Line height for paragraphs */
     margin-top: 10px; /* Space above the content */
     color: #e0f7fa; /* Ensure text color matches the theme */
 }
 
 /* Flexbox layout for upvote/downvote buttons */
-.post form {
+.vote-form {
     display: flex; /* Use flexbox for button alignment */
     align-items: center; /* Center buttons vertically */
 }
 
-.post form button {
-    color: #e0f7fa; /* Light cyan text for button */
-    border: none; /* No border */
-    padding: 8px 12px; /* Adjust padding for a more compact look */
-    margin: 0 5px; /* Space between buttons */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor on hover */
-    font-size: 14px; /* Make button text smaller */
-    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transition for background color */
-}
-
 /* Upvote and Downvote Button Styles */
 .upvote {
-    background-color: #28a745; /* Darker green background for upvote */
+    background-color: #28a745; /* Green background for upvote */
 }
 
 .downvote {
-    background-color: #dc3545; /* Darker red background for downvote */
+    background-color: #dc3545; /* Red background for downvote */
 }
 
-/* Hover effect for buttons */
-.post form button:hover {
-    background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
-    color: #ffffff; /* Brighten text on hover */
-    transform: translateY(-2px); /* Slight lift effect on hover */
-}
-
-.post form h5 {
-    margin: 0 10px; /* Space around the aura text */
-    font-size: 14px; /* Make the aura text size consistent */
-    color: #e0f7fa; /* Match aura text color */
-}
-
-/* Comment section styles */
+/* Comment Section Styles */
 .comments {
     margin-top: 20px; /* Space above the comment section */
 }
 
-.comments .post {
+.comment {
     background-color: #2c2c2c; /* Dark background for comments */
-    padding: 15px; /* Padding inside each comment */
-    border-radius: 10px; /* Rounded corners for comments */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
-    margin-bottom: 15px; /* Space between comments */
-    color: #e0f7fa; /* Ensure text color matches the theme */
+    padding: 10px; /* Padding inside each comment */
+    border-radius: 8px; /* Rounded corners for comments */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
+    margin-bottom: 10px; /* Space between comments */
+    display: flex; /* Flexbox layout for comments */
 }
 
-/* Comment content */
-.comments .post h3 {
-    font-size: 14px; /* Slightly smaller font for comment content */
-    color: #b0e0e6; /* Light steel blue for content */
-    margin-bottom: 5px;
+.comment-profile-pic {
+    width: 40px; /* Smaller profile picture for comments */
+    height: 40px; /* Consistent height */
+    border-radius: 50%; /* Circular profile picture */
+    margin-right: 10px; /* Space between profile picture and comment text */
 }
 
-.comments .post h5 {
-    font-size: 12px; /* Smaller font for username */
+.comment-info {
+    flex-grow: 1; /* Allow the text area to take remaining space */
+}
+
+.comment-info h3 {
+    font-size: 14px; /* Comment content size */
+    color: #b0e0e6; /* Light steel blue for comment content */
+    margin-bottom: 5px; /* Space below each comment */
+}
+
+.comment-info h5 {
+    font-size: 12px; /* Smaller font for username and timestamp */
     color: #d1d1d1; /* Gray color for username */
-    margin-bottom: 10px;
+    margin: 0; /* Reset margin */
 }
 
-/* Comment timestamp */
-.comments .post h6 {
+/* Comment timestamp styles */
+.comment-info h6 {
     font-size: 12px; /* Small font size for timestamp */
     color: #999; /* Lighter color for timestamp */
-    margin-top: 10px;
+    margin-top: 5px; /* Space above timestamp */
 }
 
-/* Comment upvote/downvote buttons */
-.comments .post form button {
-    padding: 6px 10px; /* Adjust padding for smaller buttons in comments */
-    margin: 0 3px; /* Less space between buttons */
-}
-
-/* Hover effect for comment buttons */
-.comments .post form button:hover {
-    background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
-    color: #ffffff; /* Brighten text on hover */
-}
 /* Comment form styles */
-.comments form {
+.comment-form {
     display: flex; /* Flexbox layout for alignment */
-    align-items: center; /* Center items vertically */
     margin-top: 20px; /* Space above the form */
 }
 
-.comments form input[name="content"] {
-    width: 250px; /* Set a fixed width for the input field */
-    padding: 10px; /* Padding for a comfortable input size */
+.comment-form input[name="content"] {
+    flex-grow: 1; /* Allow input to take full width */
+    padding: 10px; /* Padding for comfortable input size */
     border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
     border-radius: 5px; /* Rounded corners */
     background-color: #1f1f1f; /* Darker background for input */
     color: #e0f7fa; /* Light cyan text for input */
     margin-right: 10px; /* Space between input and button */
-    transition: border-color 0.3s ease; /* Smooth border transition */
 }
 
-.comments form input[name="content"]:focus {
-    outline: none; /* Remove default outline */
-    border-color: #74b4e1; /* Light blue border on focus */
-}
-
-.comments form button {
+.comment-form button {
     background-color: rgba(255, 255, 255, 0.1); /* Dark background for post comment button */
     color: #e0f7fa; /* Light text color */
     border: none; /* No border */
@@ -139,7 +130,39 @@ body {
     transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
 }
 
-.comments form button:hover {
+.comment-form button:hover {
     background-color: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
     transform: translateY(-2px); /* Slight lift effect on hover */
+}
+/* Flexbox layout for upvote/downvote buttons */
+.vote-form {
+    display: flex; /* Use flexbox for button alignment */
+    align-items: center; /* Center buttons vertically */
+}
+
+/* Upvote and Downvote Button Styles */
+.vote-form button {
+    width: 50px; /* Set a fixed width for the buttons */
+    padding: 5px; /* Adjust padding for a compact size */
+    margin: 0 5px; /* Space between buttons */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 14px; /* Font size for button text */
+    color: #e0f7fa; /* Light cyan text for button */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transition for background color */
+}
+
+/* Upvote and Downvote Specific Styles */
+.upvote {
+    background-color: #28a745; /* Green background for upvote */
+}
+
+.downvote {
+    background-color: #dc3545; /* Red background for downvote */
+}
+
+/* Hover effect for buttons */
+.vote-form button:hover {
+    background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
+    color: #ffffff; /* Brighten text on hover */
+    transform: translateY(-1px); /* Slight lift effect on hover */
 }

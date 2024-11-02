@@ -1,6 +1,6 @@
 <html>
     <head>
-        <title>Direct Messages: select a conversation</title>
+        <title>Direct Messages: select a receipient</title>
         <link rel="stylesheet" href="/styles/main.css">
         <link rel="stylesheet" href="/styles/direct_messages_main.css">
 
@@ -19,6 +19,8 @@
         <section id="main">
             <h2>Enter the information of who you want to message:</h5>
                 <h2>You user id is: <%= user_id %></h5>
+                    <h3>I don't keep track of who you message. You'll have to enter this every time. Maybe bookmark conversations with specific people.</h3>
+
             <form action="/goToDirectMessages" method="GET">
                 <p>Username: </p>
                 <input name="username">

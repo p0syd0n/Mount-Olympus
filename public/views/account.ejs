@@ -8,25 +8,24 @@
     <%- include('nav', {activePage: 'account'}) %>
     <section id="main">
         <h1>User Account: <%= username %></h1>
-        <% if (pfp_blob) { %>
-            <img src="data:image/png;base64,<%= pfp_blob.toString('base64') %>" alt="Profile Picture" class="profile-pic">
+        <% if (pfp) { %>
+            <img src="data:image/png;base64,<%= pfp %>" alt="Profile Picture" class="profile-pic">
         <% } else { %>
             <img src="https://www.shutterstock.com/shutterstock/photos/1760295569/display_1500/stock-vector-profile-picture-avatar-icon-vector-1760295569.jpg" alt="Default Profile Picture" class="profile-pic">
         <% } %>
 
-        <form action="/updateAccount" method="POST">
+        <form action="/updateAccount" method="POST" enctype="multipart/form-data">
             <div class="form-group">
-                <label>Aura:</label>
-                <input type="text" name="aura" value="<%= aura %>">
+                <label>Username:</label>
+                <input type="text" name="username" value="<%= username %>">
             </div>
-            <div class="form-group">
-                <label>Created At:</label>
-                <input type="text" name="created_at" value="<%= created_at || '' %>" disabled>
-            </div>
-            <div class="form-group">
-                <label>Last Paid:</label>
-                <input type="text" name="last_paid" value="<%= last_paid || '' %>">
-            </div>
+
+            <label>Created At:</label>
+            <p><%= created_at || '' %>"</p>
+            <label>Select a pfp:</label>
+            <input type="file" id="pfp" name="pfp">
+            <label>Last Paid:</label>
+            <p><%= last_paid || '' %></p>
             <div class="form-group">
                 <label>Email:</label>
                 <input type="email" name="email" value="<%= email || '' %>">
@@ -40,19 +39,17 @@
                 <textarea name="about"><%= about || '' %></textarea>
             </div>
             <div class="form-group">
+                <label>Public Key:</label>
+                <textarea name="public_key"><%= public_key || '' %></textarea>
+            </div>
+            <div class="form-group">
                 <label>Global Discovery:</label>
                 <select name="global">
                     <option value="1" <%= global ? 'selected' : '' %>>Yes</option>
                     <option value="0" <%= !global ? 'selected' : '' %>>No</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Admin:</label>
-                <select name="admin">
-                    <option value="1" <%= admin ? 'selected' : '' %>>Yes</option>
-                    <option value="0" <%= !admin ? 'selected' : '' %>>No</option>
-                </select>
-            </div>
+
             <button type="submit">Update Account</button>
         </form>
     </section>

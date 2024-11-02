@@ -18,6 +18,8 @@ import {Server, Socket} from 'socket.io';
 import expressSocketIO from 'express-socket.io-session';
 import http, { request } from 'http';
 import { render } from 'ejs';
+import multer from 'multer';
+
 
 
 const db = new Database('database/database.db');
@@ -48,6 +50,9 @@ let requestTokens = {};
 const logPath = "app.log";
 let usernameToId = {}
 let roomNameToId = {}
+
+const storage = multer.memoryStorage(); // Store files in memory as Buffer
+const upload = multer({ storage: storage });
 
 // Set strong CSP policies
 const cspPolicy = {
@@ -220,6 +225,11 @@ function getUser(user_id) {
     return stmt.get(user_id);
 }
 
+function setPfp(user_id, pfp_base64) {
+    const stmt = db.prepare(`UPDATE users SET pfp = ? WHERE id = ?`); // Removed "TABLE"
+    return stmt.run(pfp_base64, user_id);
+}
+
 
 /**
  * Get all logs.
@@ -373,19 +383,31 @@ async function getUsers() {
  * @returns {string} The result of the SQL query.
  */
 async function createUser(username, password, admin, about="", public_key="", global=1, pfp="", tags="", email="") {
+    if (pfp == "") {
+    fs.readFile("public/images/image.png", (err, data) => {
+        if (err) {
+            console.error('Error reading the file:', err);
+            return;
+        }
+    
+        // Convert to Base64
+        const base64String = data.toString('base64');
+        pfp = 
+        console.log(base64String); // Logs the Base64 string
+    });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);  // Hash the password
     const encryptedUsername = encrypt(username);
     const encryptedPassword = encrypt(hashedPassword);
     const encryptedAbout = about != "" ? encrypt(about) : "";
     const encryptedPublicKey = public_key != "" ? encrypt(public_key) : "";
-    const encryptedPfp = pfp != "" ? encrypt(pfp) : "";
     const encryptedTags = tags != "" ? encrypt(tags) : "";
     const encryptedEmail = email != "" ? encrypt(email) : "";
 
 
     //console.log(encryptedUsername, encryptedPassword);
     const stmt = db.prepare('INSERT INTO users (username, password, admin, aura, about, public_key, global, pfp, tags, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global, encryptedPfp, encryptedTags, encryptedEmail).lastInsertRowid;
+    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global, pfp, encryptedTags, encryptedEmail).lastInsertRowid;
 }
 /**
  * 
@@ -935,16 +957,15 @@ app.get("/profile", (req, res) => {
         const username = decrypt(userData.username);
         const aura = userData.aura;
         const created_at = userData.created_at;
-        const last_paid = userData.last_paid;
         const admin = userData.admin;
         const public_key = decrypt(userData.public_key);
         const about = isItReal(userData.about) ? decrypt(userData.about) : "";
         const global = userData.global; // Will he show up on global discovery list
-        const pfp_blob = userData.pfp;
+        const pfp = userData.pfp;
         const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
         const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
 
-        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp_blob, tags, email})
+        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email})
     }
 });
 
@@ -960,72 +981,43 @@ app.get("/account", (req, res) => {
         const public_key = decrypt(userData.public_key);
         const about = isItReal(userData.about) ? decrypt(userData.about) : "";
         const global = userData.global; // Will he show up on global discovery list
-        const pfp_blob = userData.pfp;
+        const pfp = userData.pfp;
         const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
         const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
-        console.log(username, aura, admin, about, global, pfp_blob, tags, email)
 
-        res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp_blob, tags, email})
+        console.log(username, aura, admin, about, global, "pfp", tags, email)
+
+        res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp, tags, email})
     }
 })
 
 
 
-app.post('/updateAccount', (req, res) => {
-    const { aura, last_paid, email, tags, about, global, admin, user_id } = req.body;
-    
-    // Array to hold the fields and their values for the update
-    const updates = [];
-    const params = [];
-
-    // Check which fields are provided and build the update array
-    if (aura !== undefined) {
-        updates.push('aura = ?');
-        params.push(aura);
+app.post('/updateAccount', upload.single('pfp'), (req, res) => {
+    const { username, email, tags, about, global, user_id, public_key, pfp } = req.body;
+    if (username == "" || global == "" || public_key == "" || pfp == "") {
+        res.redirect("/account");
     }
-    if (last_paid !== undefined) {
-        updates.push('last_paid = ?');
-        params.push(last_paid);
-    }
-    if (email !== undefined) {
-        updates.push('email = ?');
-        params.push(encrypt(email));
-    }
-    if (tags !== undefined) {
-        updates.push('tags = ?');
-        params.push(encrypt(tags));
-    }
-    if (about !== undefined) {
-        updates.push('about = ?');
-        params.push(encrypt(about));
-    }
-    if (global !== undefined) {
-        updates.push('global = ?');
-        params.push(global);
-    }
-    if (admin !== undefined) {
-        updates.push('admin = ?');
-        params.push(admin);
+    const encryptedEmail = encrypt(email);
+    const encryptedTags = encrypt(tags);
+    const encryptedAbout = encrypt(about);
+    const encryptedPublicKey = encrypt(public_key);
+    const encryptedUsername = encrypt(username);
+    console.log(req.file);
+    let newpfp;
+    if (req.file) {
+        // Convert uploaded file buffer to Base64
+        newpfp = req.file.buffer.toString('base64');
+    } else {
+        newpfp = req.session.pfp;
     }
 
-    // If there are no updates, respond with a message
-    if (updates.length === 0) {
-        return res.status(400).send('No fields to update.');
-    }
+    //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
+    console.log(global, encryptedPublicKey)
 
-    // Add the user_id to the parameters for the WHERE clause
-    params.push(user_id);
-
-    // Create the SQL statement
-    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
-
-    // Prepare and execute the statement
-    const stmt = db.prepare(sql);
-    stmt.run(params)
-        console.log(`Rows updated: ${this.changes}`);
-        res.redirect("/account")
-    x
-        
+    const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
+    stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
+        res.redirect("/account"); 
 });
 
 
@@ -1133,21 +1125,26 @@ app.get("/post", async (req, res) => {
             aura: post.aura,
             created_time: post.created_time
         };
-
+        const poster_data = getUser(post.user_id);
+        const poster_pfp = poster_data.pfp;
         const comments_for_post = await getComments(id, comments_sort);
-        const comments_to_render = comments_for_post.map(comment => {
+        const comments_to_render = await Promise.all(comments_for_post.map(async comment => {
             const decryptedContentComment = decrypt(comment.content);
-            const decryptedUsernameComment = decrypt(getUsernameById(comment.user_id));
+            const user = await getUser(comment.user_id); // Get user data using user_id
+            const decryptedUsernameComment = decrypt(user.username); // Assuming username is part of user data
+            const pfp = user.pfp; // Assuming pfp is part of the user data
+        
             return {
                 id: comment.id,
                 content: decryptedContentComment,
                 username: decryptedUsernameComment,
+                pfp: pfp, // Add pfp to the comment object
                 aura: comment.aura,
                 created_time: comment.created_at
             };
-        });
+        }));
 
-        res.render("post.ejs", { post: post_to_render, comments: comments_to_render });
+        res.render("post.ejs", { post: post_to_render, comments: comments_to_render, pfp: poster_pfp});
     } catch (error) {
         console.error("Error retrieving post:", error);
         res.redirect("/forum?message=Error retrieving post");
@@ -1255,6 +1252,7 @@ app.post("/executeLogin", async (req, res) => {
                 req.session.last_paid = user_database.last_paid;
                 req.session.user_id = user_database.id;
                 req.session.authedRooms = [];
+                req.session.pfp = user_database.pfp;
                 if (req.session.admin) {
                     logger.info(`An admin logged in - ${req.session.username}`);
                 }
@@ -1489,6 +1487,19 @@ admin : admin : 12
 server.listen(PORT, async () => {
     updateUsernameToId()
     updateRoomToId();
+    // fs.readFile("public/images/logo.png", (err, data) => {
+    //     if (err) {
+    //         console.error('Error reading the file:', err);
+    //         return;
+    //     }
+    
+    //     // Convert to Base64
+    //     const base64String = data.toString('base64');
+    //     setPfp(1, base64String)
+    //     console.log(base64String); // Logs the Base64 string
+    // });
+    
+    //setUserProfilePicture(12, "public/images/logo.png")
     //addPublicKey(11, "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----")
 
     //console.log(encrypt("signage"))
@@ -1496,6 +1507,7 @@ server.listen(PORT, async () => {
     //createRoom("private room", "password");
     //getAllDecryptedLogs()
     //createUser('admin', 'admin', 1, "I'm an admin.", "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----", 1, "", "admin, tag1", "admin@admin.com");
+    
     //createTopic("General");
     //createPost("Test Post!: 2", 1, 3, "This is the content of the second post.", "general, discussion");
     //createComment(1, 3, "Test Comment!");
