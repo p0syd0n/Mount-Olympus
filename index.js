@@ -19,7 +19,7 @@ import expressSocketIO from 'express-socket.io-session';
 import http, { request } from 'http';
 import { render } from 'ejs';
 import multer from 'multer';
-
+import https from 'https';
 
 
 const db = new Database('database/database.db');
@@ -43,7 +43,17 @@ const PORT = 2000;
 const topics = {0: "general"}
 
 const app = express();
-const server = http.createServer(app);
+let server;
+if (process.env.DEPLOY == "1") {
+    const sslOptions = {
+        key: fs.readFileSync('/etc/letsencrypt/live/23-92-19-124.ip.linodeusercontent.com/privkey.pem'),
+        cert: fs.readFileSync('/etc/letsencrypt/live/23-92-19-124.ip.linodeusercontent.com/fullchain.pem'),
+    };
+    server = https.createServer(sslOptions, app);
+}
+else {
+    server = http.createServer(app);
+}
 const io = new Server(server);
 let validAuthTokens = [];
 let requestTokens = {};
