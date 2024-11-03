@@ -8,10 +8,11 @@ let his_username;
 const myInstance = new JSEncrypt();
 // His isntance will encrypt things with his public key.
 const hisInstance = new JSEncrypt();
+let established = false;
 
 // look at keys or at least maybe idek
 let hisPublicKey = document.getElementById("his_public_key").value;
-let myPrivateKey = localStorage.getItem("my_private_key");
+let myPrivateKey = localStorage.getItem("private_key");
 document.getElementById("my_private_key").value = myPrivateKey;
 let myPublicKey = document.getElementById("my_public_key").value;
 
@@ -58,6 +59,7 @@ function decrypt_for_me(message) {
 }
 
 function sendMessage() {
+    if (!established) return;
     // const content = data.content;
     // const receiver_id = data.receiver_id;
     // const sender_id = data.sender_id;
@@ -128,6 +130,7 @@ socket.on("establishment", (data) => {
         document.getElementById("messages").appendChild(newParagraph);
     }
     console.log("established: "+ JSON.stringify(data.messages));
+    established = true;
 })
 
 socket.on('newMessage', (data) => {

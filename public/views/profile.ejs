@@ -5,27 +5,39 @@
     <link rel="stylesheet" href="/styles/account.css">
 </head>
 <body>
-    <nav role="main">
-        <a href="/">main</a>
-        <a href="/forum">forum</a>
-        <a href="/directMessagesMain">direct messages</a>
-        <a href="/chat_main" active>chat rooms</a>
-    </nav>
+    <%- include( 'nav', { activePage: "logout"}) %>
     <section id="main">
         <div class="account-info">
-            <h1>User Account: <%= username %></h1>
-            <% if (pfp_blob) { %>
-                <img src="data:image/png;base64,<%= pfp_blob.toString('base64') %>" alt="Profile Picture" class="profile-pic">
+            <h1><%= username %></h1>
+            <% if (pfp) { %>
+                <img src="data:image/png;base64,<%= pfp %>" alt="Profile Picture" class="profile-pic">
             <% } else { %>
-                <img src="/path/to/default/image.png" alt="Default Profile Picture" class="profile-pic">
+                <img src="/images/image.png" alt="Default Profile Picture" class="profile-pic">
             <% } %>
+            <hr>
+            <br>
+            <a href="/goToDirectMessages?user_id=<%= user_id %>">Direct Message this person</a>
             <p><strong>Aura:</strong> <%= aura %></p>
+                <br>
             <p><strong>Created At:</strong> <%= created_at %></p>
+            <br>
+
             <p><strong>Email:</strong> <%= email %></p>
+            <br>
+
             <p><strong>Tags:</strong> <%= tags %></p>
-            <p><strong>About:</strong> <%= about %></p>
+            <br>
+
             <p><strong>Global Discovery:</strong> <%= global ? "Yes" : "No" %></p>
+            <br>
+
             <p><strong>Admin:</strong> <%= admin ? "Yes" : "No" %></p>
+            <br>
+            <br>
+
+            <p><strong>Public Key:</strong><br> <%= public_key %></p>
+            <br>
+            <p><strong>About:</strong> <br><%= about %></p>
         </div>
     </section>
 </body>

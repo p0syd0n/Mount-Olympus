@@ -35,6 +35,7 @@ nav a {
 
 nav a:hover {
   background-color: #575757; /* Slightly lighter on hover */
+  text-decoration: underline;
 }
 
 /* Style the main content area */

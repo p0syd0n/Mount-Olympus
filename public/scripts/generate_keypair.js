@@ -9,8 +9,8 @@ const privateKey = encryptor.getPrivateKey();
 console.log("Public Key:", publicKey);
 console.log("Private Key:", privateKey);
 
-document.getElementById("public_key").textContent = publicKey;
-document.getElementById("private_key").textContent = privateKey;
+document.getElementById("public_key_display").textContent = publicKey;
+document.getElementById("private_key_display").textContent = privateKey;
 
 
 // Message to encrypt

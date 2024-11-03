@@ -12,6 +12,7 @@ body {
   background-color: #0d0d0d; /* Very dark background */
 }
 
+
 /* Style the navigation bar */
 nav {
   width: 200px; /* Width of the sidebar */
@@ -22,6 +23,16 @@ nav {
   justify-content: flex-start; /* Align links at the top */
   padding: 20px;
   height: 100%;
+}
+
+a {
+  color: rgb(255, 42, 9);
+  text-decoration:wavy
+}
+a:hover {
+text-decoration: underline;
+color: rgb(255, 255, 255);
+
 }
 
 /* Style the navigation links */

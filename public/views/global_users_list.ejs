@@ -1,0 +1,21 @@
+<html>
+    <head>
+        <title>Main</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/forum.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'forum' }) %>
+        <section id="main">
+            <% for (let i = 0; i < users.length; i++) { %>
+                <div class="post">
+                    <h3><a href="/profile?user_id=<%= users[i].id %>"><%= users[i].username %></a></h3>
+                    <h2><%= users[i].aura %></h2>
+                    <h2><%= users[i].tags %></h2>
+                </div>
+            <% } %>
+
+        </section>
+    </body>
+</html>

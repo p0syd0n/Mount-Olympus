@@ -21,15 +21,19 @@
             <textarea id="his_public_key" placeholder="PLACE OTHER USER'S PUBLIC KEY HERE"><%= receiver_public_key ? receiver_public_key : "" %></textarea>
             <textarea id="my_public_key" placeholder="PLACE YOUR PUBLIC KEY HERE"><%= sender_public_key ? sender_public_key : "" %></textarea>
             <textarea id="my_private_key" placeholder="PLACE YOUR PRIVATE KEY HERE"></textarea>
+            <br>
             <button id="initialize">Connect!</button>
+            <br>
+            <br>
             <div id="messages"></div>
-            <input id="input">
+            <br>
+            <input id="input" placeholder="Type messages here. If you're here to leave feedback, please send your email or another way to get back to you.">
             <button id="sendMessage">Send message</button>
         </section>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
         <script src="/socket.io/socket.io.js"></script>
-        <script src="/scripts/chat.js" integrity="sha384-jc+jfW90BplQZSK5RIWm4Dj0+5Nsr+XHNyNkH/VcjvdGXtajD9ml11cJFw9FaRez"></script>
+        <script src="/scripts/chat.js" integrity="sha384-IQ2XTD8ldLmml4LJnXM5rPyUkyp9G278AA2xPfqJV2BMvwditaii9wkOZ2qvXHbU"></script>
     </body>
 </html>'

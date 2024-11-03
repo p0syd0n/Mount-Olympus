@@ -14,35 +14,6 @@ body {
     color: #e0f7fa; /* Soft cyan for overall text color */
 }
 
-/* Style the navigation bar */
-nav {
-    width: 200px; /* Width of the sidebar */
-    background-color: #333; /* Dark background for navigation */
-    color: white; /* Text color */
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start; /* Align links at the top */
-    padding: 20px;
-    height: 100%;
-}
-
-/* Style the navigation links */
-nav a {
-    color: white;
-    text-decoration: none;
-    margin: 10px 0; /* Spacing between links */
-    padding: 10px;
-    display: block; /* Makes the links take up the full width */
-    border-radius: 5px;
-}
-
-nav a:hover {
-    background-color: #575757; /* Slightly lighter on hover */
-}
-
-nav a.active {
-    text-decoration: underline; /* Underline for active link */
-}
 
 /* Main section styles */
 #main {

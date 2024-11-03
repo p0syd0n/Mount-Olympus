@@ -140,8 +140,10 @@ async function sendMessage() {
 }
 
 function initialize() {
+  room_key = document.getElementById("room_key").value;
+  my_private_key = document.getElementById("private_key").value
   if (document.getElementById("private_key").value == "") return;
-  if (room_key == "") return;
+  if (!(room_key && room_key != "")) return;
   room_key = document.getElementById("room_key").value
   socket.emit("establishmentRoom", {sender_id: my_id, room_title: room_title, room_id: room_id})
 }

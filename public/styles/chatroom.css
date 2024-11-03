@@ -5,17 +5,7 @@ body {
     font-family: Arial, sans-serif; /* Font style */
 }
 
-/* Navigation styles */
-nav {
-    width: 200px; /* Width of the sidebar */
-    background-color: #333; /* Dark background for navigation */
-    color: white; /* Text color */
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start; /* Align links at the top */
-    padding: 20px;
-    height: 100%;
-}
+
 
 /* Heading styles */
 h1 {

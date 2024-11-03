@@ -6,11 +6,6 @@ body {
     margin: 0; /* Remove default margin */
 }
 
-/* Navigation styles */
-nav {
-    background: rgba(50, 50, 50, 0.9); /* Dark background for nav */
-    padding: 10px; /* Padding for navigation */
-}
 
 /* Navigation links */
 nav a {

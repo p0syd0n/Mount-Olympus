@@ -1,0 +1,72 @@
+<html>
+<head>
+    <title>Create</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/account.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
+
+</head>
+<body>
+    <section id="main">
+        <h1>Create Account</h1>
+
+        <form action="/executeCreateAccount" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Username:</label>
+                <input type="text" name="username">
+            </div>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" name="password">
+            </div>
+            <div class="form-group">
+                <label>Type the password again:</label>
+                <input type="password" name="password1">
+            </div>
+            <label>Select a pfp (optional):</label>
+            <input type="file" id="pfp_" name="pfp_">
+
+            <div class="form-group">
+                <label>Email: (optional)</label>
+                <input type="email" name="email">
+            </div>
+
+            <div class="form-group">
+                <label>Tags (comma seperated list will be forward-compatible.) (optional):</label>
+                <input type="text" name="tags">
+            </div>
+
+            <div class="form-group">
+                <label>About (description) (optional):</label>
+                <textarea name="about"></textarea>
+            </div>
+
+            <p>Here is your account keypair. These will be used when you message other users and join group chats. Do not lose these keys.</p>
+            <br>
+            <br>
+            <p id="public_key_display"></p>
+            <br>
+            <br>
+            <p id="private_key_display"></p>
+            <br>
+            <br>
+
+            <div class="form-group">
+                <label>Paste your public key here:</label>
+                <textarea name="public_key"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Global Discovery (do you want to be visible on the global users list?):</label>
+                <select name="global_bool">
+                    <option value="1" >Yes</option>
+                    <option value="0" >No</option>
+                </select>
+            </div>
+
+            <button type="submit">Create Account</button>
+        </form>
+    </section>
+    <script src="/scripts/generate_keypair.js" integrity="sha384-SuqEasE8VSGrx3Cv3yGPYCSCfHbWL0xFg9HsTkKkyPycb+qm0fwMlt4PRW4K/pFV"></script>
+</body>
+</html>

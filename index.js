@@ -382,32 +382,36 @@ async function getUsers() {
  * @param {boolean} admin - Boolean indicating whether the user is an admin
  * @returns {string} The result of the SQL query.
  */
-async function createUser(username, password, admin, about="", public_key="", global=1, pfp="", tags="", email="") {
+async function createUser(username, password, admin, about="", public_key="", global_bool=1, pfp="", tags="", email="") {
+    let newpfp
     if (pfp == "") {
-    fs.readFile("public/images/image.png", (err, data) => {
-        if (err) {
-            console.error('Error reading the file:', err);
-            return;
-        }
-    
-        // Convert to Base64
-        const base64String = data.toString('base64');
-        pfp = 
-        console.log(base64String); // Logs the Base64 string
-    });
+        fs.readFile("public/images/image.png", (err, data) => {
+            if (err) {
+                console.error('Error reading the file:', err);
+                return;
+            }
+
+            // Convert to Base64
+            const base64String = data.toString('base64');
+            newpfp = base64String
+        });
+    } else {
+        newpfp = pfp;
     }
     const hashedPassword = await bcrypt.hash(password, 10);  // Hash the password
     const encryptedUsername = encrypt(username);
     const encryptedPassword = encrypt(hashedPassword);
-    const encryptedAbout = about != "" ? encrypt(about) : "";
-    const encryptedPublicKey = public_key != "" ? encrypt(public_key) : "";
-    const encryptedTags = tags != "" ? encrypt(tags) : "";
-    const encryptedEmail = email != "" ? encrypt(email) : "";
+    const encryptedAbout = isItReal(about) != "" ? encrypt(about) : "";
+    const encryptedPublicKey = isItReal(public_key) != "" ? encrypt(public_key) : "";
+    const encryptedTags = isItReal(tags) != "" ? encrypt(tags) : "";
+    const encryptedEmail = isItReal(email) != "" ? encrypt(email) : "";
+    console.log(encryptedPassword, encryptedUsername, admin, global_bool, encryptedAbout, encryptedPublicKey, encryptedTags, encryptedEmail);
+    
 
 
     //console.log(encryptedUsername, encryptedPassword);
     const stmt = db.prepare('INSERT INTO users (username, password, admin, aura, about, public_key, global, pfp, tags, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global, pfp, encryptedTags, encryptedEmail).lastInsertRowid;
+    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global_bool, newpfp, encryptedTags, encryptedEmail).lastInsertRowid;
 }
 /**
  * 
@@ -800,7 +804,7 @@ app.get("/login", (req, res) => {
     if (req.session.username) {
         res.redirect("/");
     } else {
-        res.render("login.ejs", { message: req.query.message || "" });
+        res.render("login.ejs", { message: req.query.message || "", success: req.query.success || "" });
     }
 });
 
@@ -942,7 +946,7 @@ app.get("/chatroom", async (req, res) => {
                 res.redirect(`/roomLogin?room_id=${room_id}&room_title=${room_title}`);
             }
         } else {
-            res.render("chatroom.ejs", { room_id, room_title, sender_id: req.session.id, sender_public_key: decrypt(getPublicKey(req.session.user_id)) });
+            res.render("chatroom.ejs", { room_id, room_title, sender_id: req.session.user_id, sender_public_key: decrypt(getPublicKey(req.session.user_id)) });
         }
     } catch (error) {
         console.error("Error accessing chat room:", error);
@@ -953,7 +957,7 @@ app.get("/chatroom", async (req, res) => {
 app.get("/profile", (req, res) => {
     if (req.session.username) {
         const userData = getUser(req.query.user_id) ? getUser(req.query.user_id) : res.redirect("/");
-
+        const user_id = req.query.user_id;
         const username = decrypt(userData.username);
         const aura = userData.aura;
         const created_at = userData.created_at;
@@ -965,7 +969,7 @@ app.get("/profile", (req, res) => {
         const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
         const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
 
-        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email})
+        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email, user_id})
     }
 });
 
@@ -1072,6 +1076,66 @@ app.post("/executeRoomLogin", async (req, res) => {
         res.redirect("/chat_main?message=Error logging in to room");
     }
 });
+
+app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
+    if (!req.session.username) {
+        const { username, password, password1, email, tags, about, public_key, global_bool } = req.body;
+        console.log(username, password, password1, email, tags, about, public_key)
+        if (username == "" || password == "" || public_key == "") {
+            res.redirect("/createAccount?message=You missed a piece");
+            return;
+        }
+        if (password != password1) {
+            res.redirect("/createAccount?message=Your passwords don't match");
+            return;
+        }
+
+        let newpfp;
+        if (req.file) {
+            // Convert uploaded file buffer to Base64
+            newpfp = req.file.buffer.toString('base64');
+        } else {
+            fs.readFile("public/images/image.png", (err, data) => {
+                if (err) {
+                    console.error('Error reading the file:', err);
+                    return;
+                }
+
+                // Convert to Base64
+                const base64String = data.toString('base64');
+                newpfp = base64String;
+            });
+        }
+        console.log("new PFP: " + newpfp);
+        await createUser(username, password, 0, about, public_key, global_bool, newpfp, tags, email);
+        res.redirect("/login?success=please log in with your new account!!");
+    }
+});
+
+app.get("/createAccount", (req, res) => {
+    if (!req.session.username) {
+        res.render("create_account");
+    } else {
+        res.redirect("/login?message=youre already logged in. If you see this, something broke. Contact me.");
+    }
+})
+
+app.get("/globalUsers",async  (req, res) => {
+ if (req.session.username) {
+    const users_ = await getUsers();
+    let renderUsers = [];
+    for (let user of users_) {
+        if (user.global) {
+            const username = decrypt(user.username);
+            const aura = user.aura
+            const tags = decrypt(user.tags);
+            const id = user.id
+            renderUsers.push({username, aura, tags, id});
+        }
+    }
+    res.render("global_users_list", {users: renderUsers})
+ }
+})
 
 app.get("/middlemanRoom", (req, res) => {
     res.redirect(req.query.destination || "/login");
@@ -1399,14 +1463,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on("establishmentRoom", (data) => {
+        console.log("establishment room!!!!1")
+        console.log(session.username, session.user_id, data.sender_id)
         try {
             if (session.username && session.user_id == data.sender_id) {
+                console.log("we lethim in");
                 const { room_title, room_id } = data;
 
                 if (decrypt(getRoomTitleById(room_id)) !== room_title) return;
 
                 const roomData = getRoomData(room_id);
-                if (roomData.password && !session.authedRooms.includes(room_title)) return;
+                if (roomData.password != "" && !session.authedRooms.includes(room_title)) return;
 
                 socket.join(room_title);
                 session.room = room_title;
@@ -1427,11 +1494,15 @@ io.on('connection', (socket) => {
     });
 
     socket.on("newMessageRoom", (data) => {
+        console.log("got new message room")
         try {
             if (session.username && session.user_id == data.sender_id) {
+                console.log("let him in");
                 const { content, room_id, room_title } = data;
 
-                if (decrypt(getRoomTitleById(room_id)) !== room_title || !session.authedRooms.includes(room_title)) return;
+                if (decrypt(getRoomTitleById(room_id)) != room_title) return;
+                const roomData = getRoomData(room_id);
+                if (roomData.password != "" && !session.authedRooms.includes(room_title))
                 if (room_title !== session.room) return;
 
                 if (data.save) {

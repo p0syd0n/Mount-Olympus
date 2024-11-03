@@ -6,6 +6,8 @@
     <body>
         <img src="/images/logo_transparent.png" onerror="alert('This should not run!');">
         <p style="color: red"><%= message %></p>
+        <p style="color: green"><%= success %></p>
+
         <form action="/executeLogin" method="POST">
             <input type="text" name="username" autofocus>
             <input type="password" name="password">

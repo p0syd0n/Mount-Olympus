@@ -1,8 +1,9 @@
 <html>
     <head>
         <title>Generate Keypair</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
         <link rel="stylesheet" href="/styles/main.css">
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0/jsencrypt.min.js"></script>
     </head>
     <body>
         <%- include('nav', { activePage: 'generate_keypair' }) %>
@@ -12,11 +13,11 @@
         </noscript>
         <section id="main" >
             <p>Public key:</p>
-            <p id="public_key"></p>
+            <p id="public_key_display"></p>
             <p>Private key:</p>
-            <p id="private_key"></p>
+            <p id="private_key_display"></p>
         </section>
 
-        <script src="/scripts/generate_keypair.js" integrity="sha384-GtWsfjKgxtUHK1J2UzkqCXlUpy45rkLaKaOXVtRXHQ6XFyi5ZbXkvugW6vj3k2DX"></script>
+        <script src="/scripts/generate_keypair.js" integrity="sha384-SuqEasE8VSGrx3Cv3yGPYCSCfHbWL0xFg9HsTkKkyPycb+qm0fwMlt4PRW4K/pFV"></script>
     </body>
 </html>
