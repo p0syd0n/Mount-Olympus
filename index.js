@@ -39,7 +39,7 @@ const encryptionKey = deriveKey(hashedPassword);
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const PORT = 2000;
+let PORT = 2000;
 const topics = {0: "general"}
 
 const app = express();
@@ -50,6 +50,7 @@ if (process.env.DEPLOY == "1") {
         cert: fs.readFileSync('/etc/letsencrypt/live/23-92-19-124.ip.linodeusercontent.com/fullchain.pem'),
     };
     server = https.createServer(sslOptions, app);
+    PORT = 443;
 }
 else {
     server = http.createServer(app);
@@ -375,6 +376,11 @@ async function getPosts(topic_id, order="desc_aura") {
     
 }
 
+async function deleteConversation(users) {
+    const stmt = db.prepare("DELETE FROM direct_messages WHERE users=?");
+    return stmt.run(users);
+}
+
 /**
  * Get users from the database. Returns encrypted data.
  * @returns {Array}  List of users. [ENCRYPTED]
@@ -432,6 +438,46 @@ function getMessagesRoom(roomId) {
     const stmt = db.prepare(`SELECT * FROM messages WHERE room_id = ?`);
     return stmt.all(roomId);
 }
+
+async function getUsersForDMs(user_id) {
+    try {
+        // Query to retrieve all direct messages
+        const query = `SELECT * FROM direct_messages`;
+
+        // Prepare the statement
+        const stmt = db.prepare(query);
+
+        // Execute the query to get all entries
+        const results = stmt.all(); // Get all entries
+
+        // Set to store unique user data dictionaries
+        const userDicts = [];
+
+        // Process each result to decrypt and extract other user IDs
+        for (const row of results) {
+            console.log(row.users)
+
+            const userArray = row.users.split(','); // Split into individual IDs
+
+            // Check if the current user_id is in the decrypted users
+            if (userArray.includes(user_id.toString())) {
+                // Add other user IDs and their usernames to the list
+                for (const id of userArray) {
+                    if (id !== user_id.toString()) { // Ensure we don't include the current user's ID
+                        const username = decrypt(getUsernameById(id)); // Get and decrypt the username
+                        userDicts.push({ user_id: id, username: username }); // Add to the list
+                    }
+                }
+            }
+        }
+        console.log(userDicts);
+        return userDicts; // Return the list of user dictionaries
+    } catch (error) {
+        console.error("Error retrieving users for DMs:", error);
+        return []; // Return an empty array in case of an error
+    }
+}
+
 
 /**
  * 
@@ -1034,6 +1080,22 @@ app.post('/updateAccount', upload.single('pfp'), (req, res) => {
         res.redirect("/account"); 
 });
 
+app.get("/deleteConversation", (req, res) => {
+    if (req.session.username) {
+        const receiver_id = req.query.user_id;
+        console.log("here", req.session.user_id, receiver_id)
+        let users;
+        if (receiver_id > req.session.user_id) {
+            users = `${receiver_id},${req.session.user_id}`;
+        } else {
+            users = `${req.session.user_id},${receiver_id}`;
+        }
+        console.log(users);
+        deleteConversation(users);
+        res.redirect("/directMessagesMain");
+    }
+});
+
 
 // Password check for private chat rooms
 app.get("/roomLogin", (req, res) => {
@@ -1151,9 +1213,10 @@ app.get("/middlemanRoom", (req, res) => {
     res.redirect(req.query.destination || "/login");
 });
 
-app.get("/directMessagesMain", (req, res) => {
+app.get("/directMessagesMain", async (req, res) => {
     if (req.session.username) {
-        res.render("direct_messages_main", { user_id: req.session.user_id });
+        const users = await getUsersForDMs(req.session.user_id);
+        res.render("direct_messages_main", { user_id: req.session.user_id, users});
     } else {
         res.redirect("/login");
     }
@@ -1621,28 +1684,5 @@ server.listen(PORT, async () => {
 
 /*
 TODO:
-
-
-Account managament
-
-add "show on global list" column to accounts
-add "about" column to accounts
-add "pfp" column to accounts
-add "tags" column to accounts
-account settings page : change username, password (email system??), public key, global list visibility settings, email visibility settings, about, pfp, tags. 
-
-account viewing page: see username, ?email, public key, about, pfp
-option to message them
-
-
-global list: list users who have global list discoverability enabled. Discover new people
-search by tags, username. public key
-
-? option to add private key to local storage
-
-
-
-
-
 
 */
