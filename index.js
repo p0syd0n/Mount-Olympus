@@ -1215,6 +1215,7 @@ app.get("/middlemanRoom", (req, res) => {
 
 app.get("/directMessagesMain", async (req, res) => {
     if (req.session.username) {
+        
         const users = await getUsersForDMs(req.session.user_id);
         res.render("direct_messages_main", { user_id: req.session.user_id, users});
     } else {
