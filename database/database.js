@@ -1,91 +1,76 @@
-import Database from 'better-sqlite3';
-import bcrypt from 'bcrypt';
+import { MongoClient, ObjectId } from 'mongodb';
+const uri = (typeof process !== 'undefined' && process.env.mongoURI) || 'mongodb://localhost:27017';
+const client = new MongoClient(uri);
+const dbName = 'house';
 
-// Load the database (will create a file if it doesn't exist)
-const dbPath = path.resolve(__dirname, 'house.db'); // Path to the database file
-const db = new Database(dbPath, { verbose: console.log }); // Optional verbose logging for debugging
-
-function prompt(question) {
-    return new Promise((resolve) => {
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-
-        // Ask the question
-        rl.question(question, (answer) => {
-            resolve(answer);  // Resolve the promise with the answer
-            rl.close();  // Close the readline interface
-        });
-    });
+async function connectDb() {
+    await client.connect();
+    console.log("Connected to MongoDB");
+    return client.db(dbName);
 }
 
-function getPostById(db, postId) {
-    const stmt = db.prepare('SELECT * FROM posts WHERE id = ?');
-    return stmt.get(postId); // Returns a single post as an object
+async function getPostById(db, postId) {
+    return await db.collection('posts').findOne({ _id: new ObjectId(postId) });
 }
 
-function getUsernameById(db, userId) {
-    const stmt = db.prepare('SELECT username FROM users WHERE id = ?');
-    const user = stmt.get(userId);
-    return user ? user.username : null;
+async function plusMinusAura(db, userId, amount) {
+    const result = await db.collection('users').findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        { $inc: { aura: amount } },
+        { returnDocument: 'after' }
+    );
+    return result.ok === 1; // Returns true if the update succeeded
 }
 
-function getAuraById(db, userId) {
-    const stmt = db.prepare('SELECT aura FROM users WHERE id = ?');
-    const user = stmt.get(userId);
-    return user ? user.aura : null;
-}
-
-function plusMinusAura(db, userId, amount) {
-    const currentAura = getAuraById(userId);
-    if (currentAura === null) return false;
-
-    const newAura = currentAura + amount;
-    const updateStmt = db.prepare('UPDATE users SET aura = ? WHERE id = ?');
-    return updateStmt.run(newAura, userId).changes > 0; // Returns true if the update succeeded
-}
-
-function voteContent(db, id, userId, action, type) {
+async function voteContent(db, id, userId, action, type) {
     let content;
     if (type === 'post') {
-        content = getPostById(id);
+        content = await getPostById(db, id);
     } else if (type === 'comment') {
-        content = getCommentById(id); // Assuming getCommentById is implemented
+        // Implement getCommentById or replace it with a real function
+        return false; // Placeholder until getCommentById is implemented
     }
 
     if (!content) return false;
 
-    const votedUsers = content.voted_user_ids ? content.voted_user_ids.split(',') : [];
-    if (votedUsers.includes(String(userId))) return false; // Already voted
+    const votedUsers = content.voted_user_ids || [];
+    if (votedUsers.includes(userId)) return false; // Already voted
 
-    // Adjust aura
-    const newAura = action === 'up' ? content.aura + 1 : content.aura - 1;
-    plusMinusAura(userId, action === 'up' ? 1 : -1); // Adjust user aura
+    const auraChange = action === 'up' ? 1 : -1;
+    await plusMinusAura(db, userId, auraChange);
 
-    votedUsers.push(String(userId));
-    const updatedVotedUsers = votedUsers.join(',');
+    votedUsers.push(userId);
 
-    const table = type === 'post' ? 'posts' : 'comments';
-    const stmt = db.prepare(`UPDATE ${table} SET aura = ?, voted_user_ids = ? WHERE id = ?`);
-    return stmt.run(newAura, updatedVotedUsers, id).changes > 0;
+    const updateResult = await db.collection(type === 'post' ? 'posts' : 'comments').findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: { aura: content.aura + auraChange, voted_user_ids: votedUsers } }
+    );
+
+    return updateResult.ok === 1;
 }
 
-function createPost(db, title, topicId, userId, content, tags) {
-    const stmt = db.prepare(`
-        INSERT INTO posts (title, topic_id, user_id, content, tags, aura, voted_user_ids)
-        VALUES (?, ?, ?, ?, ?, 0, '')
-    `);
-    return stmt.run(title, topicId, userId, content, tags).lastInsertRowid;
+async function createPost(db, title, topicId, userId, content, tags) {
+    const result = await db.collection('posts').insertOne({
+        title,
+        topic_id: new ObjectId(topicId),
+        user_id: new ObjectId(userId),
+        content,
+        tags,
+        aura: 0,
+        voted_user_ids: []
+    });
+    return result.insertedId;
 }
 
-function createComment(db, postId, userId, content) {
-    const stmt = db.prepare(`
-        INSERT INTO comments (post_id, user_id, content, aura, voted_user_ids, created_at)
-        VALUES (?, ?, ?, 0, '', datetime('now'))
-    `);
-    return stmt.run(postId, userId, content).lastInsertRowid;
-}
+// Usage example
+(async () => {
+    const db = await connectDb();
 
+    const postId = await createPost(db, "Sample Post", "topicId", "userId", "This is a post content", ["tag1", "tag2"]);
+    console.log("Post created with ID:", postId);
 
+    const voteSuccess = await voteContent(db, postId, "userId", "up", "post");
+    console.log("Vote successful:", voteSuccess);
 
+    await client.close();
+})();
