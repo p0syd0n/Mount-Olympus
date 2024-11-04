@@ -1200,7 +1200,7 @@ app.get("/globalUsers",async  (req, res) => {
         if (user.global) {
             const username = decrypt(user.username);
             const aura = user.aura
-            const tags = decrypt(user.tags);
+            const tags = isItReal(user.tags) ? decrypt(user.tags) : "";
             const id = user.id
             renderUsers.push({username, aura, tags, id});
         }
@@ -1215,7 +1215,7 @@ app.get("/middlemanRoom", (req, res) => {
 
 app.get("/directMessagesMain", async (req, res) => {
     if (req.session.username) {
-        
+
         const users = await getUsersForDMs(req.session.user_id);
         res.render("direct_messages_main", { user_id: req.session.user_id, users});
     } else {
