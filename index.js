@@ -1026,6 +1026,8 @@ app.get("/profile", (req, res) => {
         const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
 
         res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email, user_id})
+    } else {
+        res.redirect("/login");
     }
 });
 
@@ -1048,36 +1050,43 @@ app.get("/account", (req, res) => {
         console.log(username, aura, admin, about, global, "pfp", tags, email)
 
         res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp, tags, email})
+    } else {
+        res.redirect("/login");
     }
 })
 
 
 
 app.post('/updateAccount', upload.single('pfp'), (req, res) => {
-    const { username, email, tags, about, global, user_id, public_key, pfp } = req.body;
-    if (username == "" || global == "" || public_key == "" || pfp == "") {
-        res.redirect("/account");
-    }
-    const encryptedEmail = encrypt(email);
-    const encryptedTags = encrypt(tags);
-    const encryptedAbout = encrypt(about);
-    const encryptedPublicKey = encrypt(public_key);
-    const encryptedUsername = encrypt(username);
-    console.log(req.file);
-    let newpfp;
-    if (req.file) {
-        // Convert uploaded file buffer to Base64
-        newpfp = req.file.buffer.toString('base64');
-    } else {
-        newpfp = req.session.pfp;
-    }
-
-    //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
-    console.log(global, encryptedPublicKey)
-
-    const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
-    stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
+    if (req.session.username) {
+        const { username, email, tags, about, global, user_id, public_key, pfp } = req.body;
+        if (username == "" || global == "" || public_key == "" || pfp == "") {
+            res.redirect("/account");
+        }
+        const encryptedEmail = encrypt(email);
+        const encryptedTags = encrypt(tags);
+        const encryptedAbout = encrypt(about);
+        const encryptedPublicKey = encrypt(public_key);
+        const encryptedUsername = encrypt(username);
+        console.log(req.file);
+        let newpfp;
+        if (req.file) {
+            // Convert uploaded file buffer to Base64
+            newpfp = req.file.buffer.toString('base64');
+        } else {
+            newpfp = req.session.pfp;
+        }
+    
+        //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
+        console.log(global, encryptedPublicKey)
+    
+        const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
+        stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
         res.redirect("/account"); 
+    } else {
+        res.redirect("/login");
+    }
+
 });
 
 app.get("/deleteConversation", (req, res) => {
@@ -1093,6 +1102,8 @@ app.get("/deleteConversation", (req, res) => {
         console.log(users);
         deleteConversation(users);
         res.redirect("/directMessagesMain");
+    } else {
+        res.redirect("/login");
     }
 });
 
@@ -1181,6 +1192,8 @@ app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
         console.log("new PFP: " + newpfp);
         await createUser(username, password, 0, about, public_key, global_bool, newpfp, tags, email);
         res.redirect("/login?success=please log in with your new account!!");
+    } else {
+        res.redirect("/")
     }
 });
 
@@ -1205,8 +1218,11 @@ app.get("/globalUsers",async  (req, res) => {
             renderUsers.push({username, aura, tags, id});
         }
     }
-    res.render("global_users_list", {users: renderUsers})
+    res.render("global_users_list", {users: renderUsers});
+    return;
  }
+ res.redirect("/login");
+ 
 })
 
 app.get("/middlemanRoom", (req, res) => {
