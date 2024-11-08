@@ -1,7 +1,7 @@
-bash update_dm.sh
-bash update_groupchat.sh
-bash update_create_room.sh
-bash update_create_account.sh
-bash update_generate_keypair.sh
+bash scripts/update_dm.sh
+bash scripts/update_groupchat.sh
+bash scripts/update_create_room.sh
+bash scripts/update_create_account.sh
+bash scripts/update_generate_keypair.sh
 
 node .

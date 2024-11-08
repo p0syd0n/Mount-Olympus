@@ -426,23 +426,6 @@ function deleteRoom(roomId) {
     return 1;
 }
 
-function addMessageDebug(user_id_from, user_id_to, content) {
-    const username_from = getUsernameById(user_id_from);
-    const username_to = getUsernameById(user_id_to);
-
-    const receiver_public_key = getPublicKey(user_id_to);
-    
-    const encrypted_username_from = encrypt(username_from);
-    const encrypted_username_to = encrypt(username_to);
-    const encrypted_content = encrypt(content);
-    let users;
-    if (user_id_from > user_id_to) {
-        users = `${user_id_to},${user_id_from}`;
-    } else {
-        users = `${user_id_from},${user_id_to}`;
-    }
-}
-
 /**
  * Add a message to the database. Message content should be encrypted with the server symmetrical key prior to being added.
  * @param {int} user_id_from the id of the user who is sending the message
