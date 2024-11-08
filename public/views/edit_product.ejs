@@ -1,0 +1,93 @@
+<html>
+    <head>
+        <title>Edit Product</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/product.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'marketplace' }) %>
+
+        <section id="main">
+            <a href="/marketplace">Back</a>
+            <div class="product">
+                <h1>Edit Product</h1>
+                <form action="/updateProduct" method="POST" enctype="multipart/form-data" class="product-form">
+                    <input type="hidden" name="product_id" value="<%= id %>">
+                    
+                    <!-- Editable Fields -->
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" value="<%= name %>" required>
+                    <br>
+
+                    <label for="description">Description:</label>
+                    <br>
+                    <textarea id="description" name="description" rows="4" required><%= description %></textarea>
+                    <br>
+                    <br>
+                    <label for="price">Price (will be shown. Eg, "5 USD / 1 dandelion" or "50 USD / 1 gram"):</label>
+                    <br>
+                    <input type="text" id="price" name="price" value="<%= price %>" required>
+                    <br>
+                    <br>
+                    <label for="system_price">System Price (only the number, optional if you opt out of MO payment system) (eg "20"):</label>
+                    <br>
+                    <input type="number" id="system_price" name="system_price" value="<%= system_price %>">
+                    <br>
+                    <br>
+                    <label for="system_payments">System Payments (allow users to pay independently through secure Mount Olympus system):</label>
+                    <input type="checkbox" id="system_payments" name="system_payments" <%= system_payments ? 'checked' : '' %>>
+                    <br>
+                    <br>
+                    <label for="notes">Notes:</label>
+                    <br>
+                    <textarea id="notes" name="notes" rows="3"><%= notes %></textarea>
+                    <br>
+                    <br>
+                    <br>
+                    <label for="image">Product Image:</label>
+                    <% if (image) { %>
+                        <img src="data:image/png;base64,<%= image %>" alt="Image" class="product-pic">
+                    <% } else { %>
+                        <img src="/images/product_default.png" alt="Default Image" class="product-pic">
+                    <% } %>
+                    <br>
+                    <input type="file" id="image" name="image" accept="image/*">
+                    <br>
+                    <br>
+                    <label for="address">BTC address (optional if you choose to opt out of MO payment system):</label>
+                    <br>
+                    <input type="text" id="address" name="address" value="<%= address %>">
+                    <br>
+                    <br>
+                    <label for="tags">Tags:</label>
+                    <br>
+                    <input type="text" id="tags" name="tags" value="<%= tags %>">
+                    <br>
+                    <!-- Non-editable Fields -->
+                    <p><strong>Buys:</strong> <%= buys %></p>
+                    <br>
+                    <!-- Submit Button -->
+                    <button type="submit">Save Changes</button>
+                </form>
+            </div>
+
+            <!-- Reviews Section -->
+            <hr>
+            <div class="reviews">
+                <h2>Reviews</h2>
+                <% if (reviews.length > 0) { %>
+                    <% for (let i = 0; i < reviews.length; i++) { %>
+                        <div class="review">
+                            <div class="review-info">
+                                <h3><%= reviews[i].content %></h3>
+                                <h5><%= reviews[i].username %> | <%= reviews[i].created_time %></h5>
+                            </div>
+                        </div>
+                    <% } %>
+                <% } else { %>
+                    <p>No reviews available for this product.</p>
+                <% } %>
+            </div>
+        </section>
+    </body>
+</html>

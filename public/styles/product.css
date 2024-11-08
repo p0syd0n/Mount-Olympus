@@ -1,0 +1,103 @@
+/* General body style */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Background gradient */
+    color: #e0f7fa; /* Soft cyan for overall text color */
+    font-family: Arial, sans-serif; /* Use a legible font */
+}
+
+/* Product container */
+.product {
+    padding: 20px; /* Add padding for the product section */
+    border-radius: 10px; /* Rounded corners */
+    background-color: rgba(0, 0, 0, 0.8); /* Slightly darker background for product */
+    margin-bottom: 20px; /* Space below each post */
+}
+
+/* Product header styles */
+.product-header {
+    display: flex; /* Flex layout for product image and info */
+    align-items: center; /* Center items vertically */
+}
+
+.product-pic {
+    width: 100px; /* Set a size for the product image */
+    height: 100px; /* Consistent height */
+    border-radius: 10px; /* Slightly rounded corners */
+    margin-right: 15px; /* Space between product image and text */
+}
+
+.product-info h1 {
+    font-size: 24px; /* Font size for product title */
+    color: #b0e0e6; /* Light steel blue */
+    margin: 5px 0; /* Adjust margin */
+}
+
+.product-info h3 {
+    font-size: 16px; /* Slightly smaller for vendor and details */
+    color: #d1d1d1; /* Light gray */
+    margin: 4px 0; /* Adjust spacing */
+}
+
+/* Product description */
+.product-description {
+    line-height: 1.6; /* Line height for readability */
+    margin-top: 10px; /* Space above description */
+    color: #e0f7fa; /* Ensure text color matches theme */
+}
+
+/* Review section */
+.reviews {
+    margin-top: 20px; /* Space above reviews */
+}
+
+.review {
+    background-color: #2c2c2c; /* Dark background for each review */
+    padding: 10px; /* Padding inside each review */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+    margin-bottom: 10px; /* Space between reviews */
+}
+
+.review-info h3 {
+    font-size: 14px; /* Font size for review text */
+    color: #b0e0e6; /* Light steel blue for review content */
+    margin-bottom: 5px; /* Space below each review */
+}
+
+.review-info h5 {
+    font-size: 12px; /* Smaller font for reviewer name and date */
+    color: #d1d1d1; /* Light gray */
+    margin: 0; /* Reset margin */
+}
+
+/* Review form styling */
+.review-form {
+    display: flex; /* Flex layout for form */
+    align-items: center; /* Center form items */
+    margin-top: 20px; /* Space above the form */
+}
+
+.review-form input[name="content"] {
+    flex-grow: 1; /* Allow input to take full width */
+    padding: 10px; /* Comfortable padding */
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+    border-radius: 5px; /* Rounded corners */
+    background-color: #1f1f1f; /* Darker background for input */
+    color: #e0f7fa; /* Light cyan text */
+    margin-right: 10px; /* Space between input and button */
+}
+
+.review-form button {
+    background-color: rgba(255, 255, 255, 0.1); /* Dark button background */
+    color: #e0f7fa; /* Light text color */
+    border: none; /* No border */
+    padding: 10px 15px; /* Button padding */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+}
+
+.review-form button:hover {
+    background-color: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
+    transform: translateY(-2px); /* Slight lift effect */
+}

@@ -1,0 +1,34 @@
+<html>
+    <head>
+        <title>Your Products</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/render_products.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'vendorship' }) %>
+        <section id="main">
+            <form action="/createProduct">
+                <button type="submit">Create Product</button>
+            </form>
+            <br>
+
+            <% for (let i = 0; i < products.length; i++) { %>
+                <div class="product">
+                    <% if (products[i].image) { %>
+                        <img src="data:image/png;base64,<%= products[i].image %>" alt="Profile Picture" class="profile-pic">
+                    <% } else { %>
+                        <img src="/images/product_default.png" alt="Default Profile Picture" class="profile-pic">
+                    <% } %>
+                    <h3><a href="/editProduct?product_id=<%= products[i].id %>"><%= products[i].name %></a></h3>
+                    <h4><%= products[i].description %></h4>
+                    <h2><%= products[i].price %></h2>
+                    <h2><%= products[i].tags %></h2>
+
+                    <h2><%= products[i].notes %></h2>
+                </div>
+            <% } %>
+
+        </section>
+    </body>
+</html>

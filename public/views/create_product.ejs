@@ -1,0 +1,46 @@
+<html>
+    <head>
+        <title>Create product</title>
+        <link rel="stylesheet" href="/styles/main.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'vendorship' }) %>
+
+        <section id="main">
+            <p style="color: red"><% message %></p>
+            <h1>Create Product</h1>
+            <form action="/executeCreateProduct" method="POST" enctype="multipart/form-data">
+                <input name="name" placeholder="name" required>
+                <br>
+                <label for="description">Add a description for your product. Make sure to indicate exactly what is included in 1 unit</label>
+                <p>For example, if you are shipping spoons by the 5, for 20$ per the 5, you should indicate the price as 20 USD / 5 spoons. Therefore, if someone places an order for 2 instances of the product, they would pay 40 USD and receive 10 spoons, and your product count would go down by 2.</p>
+                <textarea name="description" type="text" placeholder="description" required></textarea>
+                <br>
+                <label for="price">Price: (Per product - this can include specifications. This will be shown to customers. EG, for spoon example, write "20 USD / 5 spoons" here.)</label>
+                <input name="price" placeholder="20 USD / 5 spoons" required>
+                <br>
+                <label for="system_price">Price: (Per product - for the system. Enter only a number here. EG, for spoon example, enter only "20". BTC price will be calculated from this number.) (This is not required if you choose to disable the auto-order-system)</label>
+                <input name="system_price" placeholder="20" >
+                <br>
+                <label>Select an image (optional):</label>
+                <input type="file" id="image" name="image">
+                <br>
+                <label for="tags">Tags: (comma seperated, for searching purposes)</label>
+                <input name="tags" placeholder="tag1, tag2, tag3" required>
+                <br>
+                <label for="notes">Notes (any other information buyers should know):</label>
+                <input name="notes" placeholder="Notes about your product">
+                <br>
+                <label>
+                    <input type="checkbox" id="system_payments" name="system_payments">
+                    Automatic order system (allow users to place orders and pay independently using the secure Mount Olympus system. If you uncheck, you will have to talk individually to each buyer.) (No information about your products, buyers, or times fo transactions are ever recorded. Only buyer id's are recorded in order to make sure a valid feedback system exists for verified buyers.)
+                </label>
+                <br>
+                <label for="address">BTC address for this product (this will be the address receiving payments from buyers) (This is not necesary if you opted to disable auto-order-system):</label>
+                <input name="address" placeholder="BTC address">
+                <button type="submit">Create</button>
+            </form>
+        </section>
+    </body>
+</html>

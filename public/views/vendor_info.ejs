@@ -1,0 +1,57 @@
+<html>
+    <head>
+        <title><%= renderVendor.name %> - Vendor Page</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/vendor_info.css">
+    </head>
+    <body>
+        <!-- Include the navigation bar with 'marketplace' set as the active page -->
+        <%- include('nav', { activePage: 'marketplace' }) %>
+
+        <section id="vendor-info">
+            <a href="/marketplace">Back to Marketplace</a>
+            
+            <div class="vendor-details">
+                <h1><%= renderVendor.name %></h1>
+                <div class="vendor-header">
+                    <div class="vendor-info">
+                        <h3>About: <%= renderVendor.about %></h3>
+                        <h3>Email: <%= renderVendor.email %></h3>
+                        <h3>Tags: <%= renderVendor.tags %></h3>
+                        <h3>Aura: <%= renderVendor.aura %></h3>
+                        <h4>Joined: <%= renderVendor.created_at %></h4>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="margin-left: 20px;">
+
+            <!-- List of products -->
+            <div class="vendor-products">
+                <h2>Products by <%= renderVendor.name %></h2>
+                <% if (renderProducts.length > 0) { %>
+                    <% renderProducts.forEach(product => { %>
+                        <div class="product">
+                            <div class="product-header">
+                                <% if (product.image) { %>
+                                    <img src="data:image/png;base64,<%= product.image %>" alt="<%= product.name %>" class="product-pic">
+                                <% } else { %>
+                                    <img src="/images/product_default.png" alt="Default Image" class="product-pic">
+                                <% } %>
+                                <div class="product-info">
+                                    <h1><%= product.name %></h1>
+                                    <h3>Price: <%= product.price %></h3>
+                                    <h3>Buys: <%= product.buys %></h3>
+                                    <h3>Tags: <%= product.tags %></h3>
+                                </div>
+                            </div>
+                            <a href="/product?product_id=<%= product.id %>" class="view-product-link">View Product</a>
+                        </div>
+                    <% }) %>
+                <% } else { %>
+                    <p>No products available from this vendor.</p>
+                <% } %>
+            </div>
+        </section>
+    </body>
+</html>

@@ -1,0 +1,51 @@
+<html>
+    <head>
+        <title>Main</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/product.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'marketplace' }) %>
+
+        <section id="main">
+            <a href="/marketplace">Back</a>
+            <div class="product">
+                <div class="product-header">
+                    <% if (image) { %>
+                        <img src="data:image/png;base64,<%= image %>" alt="Image" class="product-pic">
+                    <% } else { %>
+                        <img src="/images/product_default.png" alt="Default Image" class="product-pic">
+                    <% } %>
+                    <div class="product-info">
+                        <h1><%= name %></h1>
+                        <h3><a href="/vendor?vendor_id=<%= vendor_id %>"><%= vendor_name %></a></h3>
+                        <h3>Created at  <%= created_time %></h3>
+                        <h3>Price: <%= price %></h3>
+                        <h3>Buys: <%= buys %></h3>
+                        <h3>Tags: <%= tags %></h3>
+                        <h3>System Payments: <%= system_payments %></h3>
+                        <h3><%= notes %></h3>
+                    </div>
+                </div>
+                <p class="product-description"><%= description %></p>
+            </div>
+            <hr>
+            <div class="reviews">
+                <form action="/executeAddReview" method="POST" class="review-form">
+                    <input name="content" placeholder="Add a review (you can only leave 1)" required>
+                    <input name="product_id" value="<%= id %>" hidden>
+                    <button type="submit">Post review</button>
+                </form>
+                <br>
+                <% for (let i = 0; i < reviews.length; i++) { %>
+                    <div class="review">
+                        <div class="review-info">
+                            <h3><%= reviews[i].content %></h3>
+                            <h5><%= reviews[i].username %> | <%= comments[i].created_time %></h5>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        </section>
+    </body>
+</html>

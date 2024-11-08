@@ -20,7 +20,7 @@ import http, { request } from 'http';
 import { render } from 'ejs';
 import multer from 'multer';
 import https from 'https';
-
+import Trie from 'trie-prefix-tree';
 
 const db = new Database('database/database.db');
 
@@ -41,6 +41,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 let PORT = 2000;
 const topics = {0: "general"}
+
 
 const app = express();
 let server;
@@ -138,16 +139,117 @@ const logger = winston.createLogger({
 winston.addColors(customLevels.colors);
 
 
+let product_names_tree = Trie([]);
+let tag_names_dict = {};
+let name_product_dict = {};
+function rePopulateTrieAndDict() {
+    // Reset the Trie and Tag Dictionary once at the beginning
+    product_names_tree = Trie([]);
+    tag_names_dict = {};
+    name_product_dict = {};
+
+    // Fetch all products
+    const products = db.prepare("SELECT * FROM catalogue").all(); // Assuming `.all()` fetches all records as an array
+
+    for (let product of products) {
+        // const data = {
+        //     id: product.id,
+        //     name: decrypt(product.name),
+        //     tags: decrypt(product.tags),
+        //     name_hash: product.name_hash,
+        //     notes: decrypt(product.notes),
+        //     vendor_id: product.vendor_id,
+        //     description: decrypt(product.description),
+        //     price: decrypt(product.price),
+        //     image: isItReal(product.image) ? decrypt(product.image) : "",
+        //     system_price: product.system_price,
+        //     verified_buyers: isItReal(product.verified_buyers) ? product.verified_buyers : "",
+        //     address: product.address ? decrypt(product.address) : null,
+        //     system_payments: product.system_payments,
+        //     reviews: isItReal(product.reviews) ? decrypt(product.reviews) : "",
+        //     buys: product.buys,
+        //     created_time: product.created_time
+        // };
+        const data = {
+            id: product.id,
+            name: product.name,
+            tags: product.tags,
+            name_hash: product.name_hash,
+            notes: product.notes,
+            vendor_id: product.vendor_id,
+            description: product.description,
+            price: product.price,
+            image: product.image,
+            system_price: product.system_price,
+            verified_buyers: product.verified_buyers,
+            address: product.address,
+            system_payments: product.system_payments,
+            reviews: product.reviews,
+            buys: product.buys,
+            created_time: product.created_time
+        };
+        name_product_dict[decrypt(product.name)] = product;
+
+        // Add product name to Trie with associated data
+        product_names_tree.addWord(decrypt(data.name));
+
+        // Process tags
+        const tags = decrypt(data.tags).split(',').map(tag => tag.trim()); // Ensure tags are trimmed
+
+        for (let tag of tags) {
+            if (tag_names_dict[tag]) {
+                tag_names_dict[tag].push(data);
+            } else {
+                tag_names_dict[tag] = [data];
+            }
+        }
+    }
+    console.log(tag_names_dict)
+}
 
 
+function searchTagsOR(tags) {
+    // Split the input into individual tags and trim whitespace
+    const tagsArray = tags.split(',').map(tag => tag.trim());
+    console.log(tagsArray);
 
+    // A Set to store unique products
+    let resultSet = new Set();
 
+    // Loop over each tag, find matching products, and add them to the result set
+    tagsArray.forEach(tag => {
+        const products = tag_names_dict[tag];
+        console.log(products);
+        if (products) {
+            products.forEach(product => {
+                resultSet.add(product); // Add product to the result set
+            });
+        }
+    });
 
+    // Return the products as an array
+    return Array.from(resultSet);
+}
 
+function searchTagsAND(tags) {
+    // Split the input into individual tags and trim whitespace
+    const tagsArray = tags.split(',').map(tag => tag.trim());
 
+    // Initialize an array for products that match all tags
+    let result = [];
 
+    // Find products for the first tag
+    const firstTagProducts = tag_names_dict[tagsArray[0]];
+    if (!firstTagProducts) return []; // No products for the first tag
 
+    // Filter products that match all the tags
+    result = firstTagProducts.filter(product => {
+        // Check if the product has all tags
+        return tagsArray.every(tag => product.tags.split(',').map(t => t.trim()).includes(tag));
+    });
 
+    return result;
+}
 
 
 
@@ -231,6 +333,11 @@ function isItReal(value) {
     return typeof value === 'string' && value.trim().length > 0;
 }
 
+function getVendorData(vendor_id) {
+    const stmt = db.prepare(`SELECT * FROM vendors WHERE id = ?`);
+    return stmt.get(vendor_id);
+}
+
 function getUser(user_id) {
     const stmt = db.prepare(`SELECT * FROM users WHERE id = ?`);
     return stmt.get(user_id);
@@ -273,6 +380,43 @@ function getAllDecryptedLogs() {
         return []; // Return an empty array if there's an error
     }
 }
+
+function getProductData(vendor_id, product_name) {
+    try {
+        const hashedName = hashPassword(product_name);
+        // Prepare and execute the SQL query to get the product details
+        const query = db.prepare(`
+            SELECT * FROM catalogue 
+            WHERE vendor_id = ? AND name_hash = ?;
+        `);
+        const result = query.get(vendor_id, hashedName);
+        
+        // If result is found, return it; otherwise, return null
+        return result || null;
+    } catch (error) {
+        console.error("Error fetching product:", error);
+        return null;
+    }
+}
+
+function getProductDataById(product_id) {
+    console.log(product_id);
+    try {
+        // Prepare and execute the SQL query to get the product details
+        const query = db.prepare(`
+            SELECT * FROM catalogue 
+            WHERE id = ?;
+        `);
+        const result = query.get(product_id);
+        
+        // If result is found, return it; otherwise, return null
+        return result || null;
+    } catch (error) {
+        console.error("Error fetching product:", error);
+        return null;
+    }
+}
+
 
 function deleteRoom(roomId) {
     const stmt = db.prepare(`DELETE FROM rooms WHERE id = ?`);
@@ -340,6 +484,15 @@ function getMessages(users) {
     return stmt.all(users);
 }
 
+function updateVendorSettings(vendor_id, vendor_name, email="", about="", tags="") {
+    const encryptedName = encrypt(vendor_name);
+    const encryptedEmail = encrypt(email);
+    const encryptedAbout = encrypt(about);
+    const encryptedTags = encrypt(tags);
+    const stmt = db.prepare(`UPDATE vendors SET vendor_name = ?, email = ?, tags = ?, about = ? WHERE id = ?`);
+    return stmt.run(encryptedName, encryptedEmail, encryptedTags, encryptedAbout, vendor_id);
+}
+
 /**
  * Get posts from a specified topic_id and with an order
  * @param {int} topic_id int indicating topic_id in database. Defaults to 0 (general)
@@ -398,7 +551,7 @@ async function getUsers() {
  * @param {boolean} admin - Boolean indicating whether the user is an admin
  * @returns {string} The result of the SQL query.
  */
-async function createUser(username, password, admin, about="", public_key="", global_bool=1, pfp="", tags="", email="") {
+async function createUser(username, password, admin, about="", public_key="", global_bool=1, pfp="", tags="", email="", vendor_id=null) {
     let newpfp
     if (pfp == "") {
         fs.readFile("public/images/image.png", (err, data) => {
@@ -426,8 +579,8 @@ async function createUser(username, password, admin, about="", public_key="", gl
 
 
     //console.log(encryptedUsername, encryptedPassword);
-    const stmt = db.prepare('INSERT INTO users (username, password, admin, aura, about, public_key, global, pfp, tags, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global_bool, newpfp, encryptedTags, encryptedEmail).lastInsertRowid;
+    const stmt = db.prepare('INSERT INTO users (username, password, admin, aura, about, public_key, global, pfp, tags, email, vendor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    return stmt.run(encryptedUsername, encryptedPassword, admin, 0, encryptedAbout, encryptedPublicKey, global_bool, newpfp, encryptedTags, encryptedEmail, vendor_id).lastInsertRowid;
 }
 /**
  * 
@@ -513,6 +666,11 @@ async function addPublicKey(user_id, public_key) {
 async function getRooms() {
     const stmt = db.prepare("SELECT * FROM rooms");
     return stmt.all();
+}
+
+function getProducts(vendor_id) {
+    const stmt = db.prepare(`SELECT * FROM catalogue WHERE vendor_id = ?`)
+    return stmt.all(vendor_id);
 }
 
 /**
@@ -613,6 +771,65 @@ function getIdByUsername(username) {
     const stmt = db.prepare('SELECT id FROM users WHERE username = ?');
     const user = stmt.get(encryptedUsername);
     return user ? user.id : null;
+}
+
+async function createProduct(vendor_id, name, description, price, tags, notes, image, system_price=null, address=null, system_payments=true) {
+    try {
+        console.log("name: " + name);
+
+        // Encrypt all values, ensure encrypt is async if it involves promises
+        const encryptedName = await encrypt(name);
+        const hashedName = await hashPassword(name);
+        const encryptedDescription = await encrypt(description);
+        const encryptedPrice = await encrypt(price);
+        const encryptedNotes = await encrypt(notes);
+        const encryptedImage = await encrypt(image);
+        const encryptedTags = await encrypt(tags);
+        
+        // Handle system_price encryption
+        const encryptedSystemPrice = system_payments ? await encrypt(system_price) : null; // null instead of -1 if no system_price is provided
+        const encryptedAddress = system_payments ? await encrypt(address) : null;
+
+        // Prepare the statement for insertion
+        const stmt = db.prepare(`
+            INSERT INTO catalogue (vendor_id, description, price, notes, name, name_hash, image, system_price, verified_buyers, address, system_payments, reviews, buys, tags) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        // Run the query
+        const result = stmt.run(vendor_id, encryptedDescription, encryptedPrice, encryptedNotes, encryptedName, hashedName, encryptedImage, encryptedSystemPrice, "", encryptedAddress, system_payments, "", 0, encryptedTags);
+        rePopulateTrieAndDict()
+        return result;
+    } catch (error) {
+        console.error("Error creating product:", error);
+        throw error; // Rethrow or handle the error as needed
+    }
+}
+
+
+function createVendorship(user_id, about, email, tags, vendor_name) {
+    const encryptedAbout = encrypt(about);
+    const encryptedEmail = encrypt(email);
+    const encryptedTags = encrypt(tags);
+    const encryptedVendorName = encrypt(vendor_name);
+    const stmt = db.prepare(`INSERT INTO vendors (user_id, about, email, tags, vendor_name) VALUES (?, ?, ?, ?, ?)`);
+    stmt.run(user_id, encryptedAbout, encryptedEmail, encryptedTags, encryptedVendorName);
+
+    const stmt2 = db.prepare(`SELECT id FROM vendors WHERE user_id = ?`);
+    const user = stmt2.get(user_id);
+    
+    if (user) {
+        const stmt0 = db.prepare(`UPDATE users SET vendor_id = ?`);
+        return stmt0.run(user.id);
+    } else {
+        logger.error("Failed to create vendorship for vendor name " + vendor_name);
+        return -1;
+    }
+}
+
+function getProductsByBuys() {
+    const stmt = db.prepare("SELECT * FROM catalogue ORDER BY buys DESC");
+    return stmt.all();
 }
 
 /**
@@ -977,6 +1194,255 @@ app.get("/room_help", (req, res) => {
     res.render("room_help.ejs");
 });
 
+app.get("/vendorship", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (req.session.vendor) {
+        return res.render("vendor_main")
+    } 
+    res.render("vendorship_info")
+});
+
+app.get("/vendorshipRegister", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const aura = getAuraById(req.session.user_id);
+    
+    res.render("vendorship_register");
+});
+
+app.post("/executeVendorshipRegister", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const aura = getAuraById(req.session.user_id);
+    const { vendor_name, about, email, tags } = req.body;
+    if (!isItReal(vendor_name) || !isItReal(about) || !isItReal(email) || !isItReal(tags)) return res.redirect("/vendorshipRegister");
+    createVendorship(req.session.user_id, about, email, tags, vendor_name);
+    return res.redirect("/confirmVendorship");
+});
+
+app.get("/confirmVendorship", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    } 
+    res.render("confirm_vendorship");
+});
+
+app.get("/myProducts", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const products = getProducts(req.session.vendor_id);
+    let renderProducts = [];
+    for (let product of products) {
+        const decryptedDescription = decrypt(product.description);
+        const decryptedPrice = decrypt(product.price);
+        const decryptedNotes = decrypt(product.notes);
+        const decryptedName = decrypt(product.name);
+        const image = isItReal(product.image) ? decrypt(product.image) : 0;
+        renderProducts.push({description: decryptedDescription, name: decryptedName, price: decryptedPrice, notes: decryptedNotes, id: product.id, vendor_id: product.vendor_id, image: image});
+    }
+    return res.render("my_products", {products: renderProducts}); 
+});
+
+app.get("/createProduct", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    res.render("create_product", {message: req.query.message  ? req.query.message : ""});
+});
+
+app.post("/executeCreateProduct", upload.single('image'), async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const { name, description, price, tags, notes, system_price, address, system_payments } = req.body;
+    console.log(name);
+    if (!isItReal(name) || !isItReal(description) || !isItReal(price) || !isItReal(tags) || !isItReal(notes)) {
+        return res.redirect("/createProduct");
+    }
+    if (system_payments) {
+        if (!isItReal(system_price) || !isItReal(address)) {
+            return res.redirect("/createProduct");
+        }
+    }
+    let image;
+    if (req.file) {
+        // Convert uploaded file buffer to Base64
+        image = req.file.buffer.toString('base64');
+    } else {
+        fs.readFile("public/images/default_product.png", (err, data) => {
+            if (err) {
+                console.error('Error reading the file:', err);
+                return;
+            }
+            // Convert to Base64
+            const base64String = data.toString('base64');
+            image = base64String;
+        });
+    }
+    try {
+        const result = await createProduct(req.session.vendor_id, name, description, price, tags, notes, image, system_price, address, system_payments);
+
+    } catch (e) {
+        logger.error("Error creating a product: " + e)
+    }
+
+    //console.log(result)
+    console.log(req.session.vendor_id);
+    console.log(name);
+    const productData = await getProductData(req.session.vendor_id, name);
+    console.log("data: " + productData)
+    
+    const id = productData ? productData.id : res.redirect("/createProduct?message=an error occured")
+    res.redirect("/product?product_id="+id)
+});
+
+
+
+app.get("/product", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+
+    const product_id = req.query.product_id ? req.query.product_id : "";
+    if (!isItReal(product_id)) return res.redirect("/");
+
+    const productData = getProductDataById(product_id);
+    const stringProductData = JSON.stringify(productData);
+    console.log(stringProductData);
+    const decryptedDescription = decrypt(productData.description);
+    const decryptedPrice = decrypt(productData.price);
+    const decryptedName = decrypt(productData.name);
+    const decryptedImage = productData.image ? decrypt(productData.image) : "";
+    const decryptedReviews = isItReal(productData.reviews) ? decrypt(productData.reveiws) : [];
+    const decryptedBuys = (productData.buys != 0) ? decrypt(productData.buys) : 0;
+    const decryptedTags = decrypt(productData.tags);
+    const decryptedNotes = decrypt(productData.notes);
+    const systemPayments = productData.system_payments;
+    const created_time = productData.created_time;
+
+    const vendor = getVendorData(productData.vendor_id);
+    let vendorName;
+    if (vendor) {
+        vendorName = decrypt(vendor.vendor_name);
+    } else {
+        return res.redirect("error", {message: "the product you requested didn't seem to have an owner. :("});
+    }
+
+
+    let renderReviews = [];
+    for (let review of decryptedReviews) {
+        // "username1!content1!time1*username2!content2!time2"
+        const reviewUsername = review.split("!")[0];
+        const reviewContent = review.split("!")[1];
+        const reviewTime = review.split("!")[2];
+        renderReviews.push({username: reviewUsername, content: reviewContent, created_time: reviewTime});
+    }
+    
+    res.render("product", {id: productData.id, vendor_id: productData.vendor_id, vendor_name: vendorName, created_time: created_time, description: decryptedDescription, price: decryptedPrice, name: decryptedName, image: decryptedImage, reviews: renderReviews, buys: decryptedBuys, tags: decryptedTags, notes: decryptedNotes, system_payments: systemPayments});
+});
+
+app.get("/editProduct", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+
+    const product_id = req.query.product_id;
+
+    const productData = getProductDataById(product_id);
+
+    const decryptedDescription = decrypt(productData.description);
+    const decryptedPrice = decrypt(productData.price);
+    const decryptedName = decrypt(productData.name);
+    const decryptedImage = decrypt(productData.image);
+    const decryptedReviews = isItReal(productData.reviews) ? decrypt(productData.reveiws) : [];
+    const decryptedBuys = (productData.buys != 0) ? decrypt(productData.buys) : 0;
+    const decryptedTags = decrypt(productData.tags);
+    const decryptedNotes = decrypt(productData.notes);
+    const systemPayments = productData.system_payments;
+    const created_time = productData.created_time;
+    const decryptedAddress = isItReal(productData.address) ? decrypt(productData.address) : "";
+    const decryptedSystemPrice = decrypt(productData.system_price);
+
+    res.render('edit_product', {
+        id: productData.id,
+        vendor_id: productData.vendor_id,
+        vendor_name: productData.vendor_name,
+        name: decryptedName,
+        description: decryptedDescription,
+        price: decryptedPrice,
+        system_price: decryptedSystemPrice,
+        system_payments: systemPayments,
+        notes: decryptedNotes,
+        image: decryptedImage,
+        address: decryptedAddress,
+        tags: decryptedTags,
+        buys: decryptedBuys,
+        created_time: created_time,
+        reviews: decryptedReviews
+    }); 
+});
+
+
+
+
+app.get("/info", (req, res) => {
+    res.render("info", {message: req.query.message ? req.query.message : "No info"})
+})
+
+app.get("/vendorSettings", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const vendor_id = req.session.vendor_id;
+    const vendorData = getVendorData(vendor_id);
+    const vendor_name = isItReal(vendorData.vendor_name) ? decrypt(vendorData.vendor_name) : res.redirect("/error?message=An error has occured with your vendorship. Please contact an administrator.");
+    const email = isItReal(vendorData.email) ? decrypt(vendorData.email) : "";
+    const about = isItReal(vendorData.about) ? decrypt(vendorData.about) : "";
+    const tags = isItReal(vendorData.tags) ? decrypt(vendorData.tags) : "";
+    const created_at = vendorData.created_at;
+
+    return res.render("vendor_settings", {vendor_name, email, about, tags, created_at});
+});
+
+app.post("/updateVendorSettings", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const { vendor_name, email, about, tags } = req.body;
+    console.log(vendor_name, email, about, tags);
+    updateVendorSettings(req.session.vendor_id, vendor_name, email, about, tags);
+    res.redirect("/vendorSettings");
+})
+
 // Chat room access handling
 app.get("/chatroom", async (req, res) => {
     if (!req.session.username) {
@@ -1088,6 +1554,178 @@ app.post('/updateAccount', upload.single('pfp'), (req, res) => {
     }
 
 });
+
+app.post('/updateProduct', upload.single('image'), (req, res) => {
+    if (req.session.username) {
+        // Get form data
+        const { name, description, price, system_price, system_payments, notes, address, tags, product_id } = req.body;
+
+        // Validation checks: Make sure required fields are not empty
+        if (!isItReal(name) || !isItReal(description) || !isItReal(price) || !isItReal(tags)) {
+            return res.status(400).send('Required fields (name, description, price, tags) are missing.');
+        }
+
+        // Ensure system_price is a valid number if provided
+        if (system_price && isNaN(system_price)) {
+            return res.status(400).send('System price must be a valid number.');
+        }
+
+        // Encrypt the data from the form
+        const encryptedDescription = encrypt(description);
+        const encryptedPrice = encrypt(price);
+        const encryptedName = encrypt(name);
+        const encryptedTags = encrypt(tags);
+        const encryptedNotes = encrypt(notes);
+        const encryptedAddress = encrypt(address);
+        const encryptedSystemPrice = system_price ? encrypt(system_price) : null;
+        const encryptedSystemPayments = system_payments ? 1 : 0;
+
+        // Handle image data (use uploaded image if available, otherwise retain the old image)
+        const encryptedImage = req.file ? req.file.buffer.toString('base64') : null;
+
+        // Prepare the update query
+        const stmt = db.prepare(`
+            UPDATE catalogue SET
+                name = ?, description = ?, price = ?, system_price = ?, system_payments = ?, 
+                notes = ?, address = ?, tags = ?, image = ?
+            WHERE id = ?
+        `);
+
+        // Run the query and check for errors
+        try {
+            stmt.run(
+                encryptedName, encryptedDescription, encryptedPrice, encryptedSystemPrice, encryptedSystemPayments,
+                encryptedNotes, encryptedAddress, encryptedTags, encryptedImage, product_id
+            );
+            
+            // After successfully running the query, redirect to the updated product page
+            res.redirect(`/product?product_id=${product_id}`);
+        } catch (err) {
+            // Log and handle database errors
+            console.error('Error updating product:', err.message);
+            res.status(500).send('An error occurred while updating the product.');
+        }
+    } else {
+        // Redirect to login if no session found
+        res.redirect("/login");
+    }
+});
+
+app.get("/vendor", async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login")
+    }
+    let vendor_id;
+    if (req.query.vendor_id) {
+        vendor_id = req.query.vendor_id;
+    } else {
+        return res.redirect("/");
+    }
+    const vendorInfo = getVendorData(vendor_id);
+    const decryptedAbout = decrypt(vendorInfo.about);
+    const decryptedEmail = decrypt(vendorInfo.email);
+    const decryptedTags = decrypt(vendorInfo.tags);
+    const decryptedName = decrypt(vendorInfo.vendor_name);
+    const created_at = vendorInfo.created_at;
+    const user_id = vendorInfo.user_id;
+    const userAura = await getAuraById(user_id);
+    const renderVendor = {
+        name: decryptedName,
+        about: decryptedAbout,
+        email: decryptedEmail,
+        tags: decryptedTags,
+        created_at: created_at,
+        user_id: user_id,
+        aura: userAura
+    }
+    const products = getProducts(vendor_id);
+    let renderProducts = [];
+    for (let product of products) {
+        const decryptedName = decrypt(product.name);
+        const decryptedTags = decrypt(product.tags);
+        const decryptedImage = product.image ? decrypt(product.image) : "";
+        const decryptedPrice = decrypt(product.price);
+        const decryptedBuys = product.buys != "0" && product.buys != 0 ? decrypt(product.buys) : "1";
+        const productData = {
+            name: decryptedName,
+            tags: decryptedTags,
+            id: product.id,
+            image: decryptedImage,
+            price: decryptedPrice,
+            buys: decryptedBuys
+        }
+        renderProducts.push(productData);
+    }
+    
+    res.render("vendor_info", {renderVendor, renderProducts})
+});
+
+
+app.get("/marketplace", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    console.log("doing marketplace")
+    let products = []
+    const acceptableParameters = {aura: ["asc, desc"]}
+    const sort_method = req.query.sort_method ? req.query.sort_method : "default";
+    const sort_parameter = req.query.sort_parameter ? req.query.sort_parameter : "default";
+
+    console.log("done declaring")
+    switch (sort_method){
+        case "default":
+            console.log("Hey doing default")
+            products = getProductsByBuys();
+            break;
+        case "name":
+            let product_names = product_names_tree.getPrefix(sort_parameter)
+            for (let name of product_names) {
+                products.push(name_product_dict[name]);
+            }
+            console.log("PRODUCTS: "+products)
+            break;
+        case "tags_all":
+            if (!isItReal(sort_parameter)) return res.redirect("/marketplace")
+            products = searchTagsAND(sort_parameter);
+            break;
+        case "tags_or":
+            if (!isItReal(sort_parameter)) return res.redirect("/marketplace");
+            console.log(sort_parameter)
+            products = searchTagsOR(sort_parameter);
+            break;
+        default:
+            return res.redirect("/marketplace");
+    }
+
+    let renderProducts = [];
+    for (let product of products) {
+        const decryptedName = decrypt(product.name);
+        const decryptedPrice = decrypt(product.price);
+        const buys = product.buys;
+        const decryptedTags = decrypt(product.tags);
+        const system_payments = product.system_payments;
+        const decryptedImage = decrypt(product.image);
+        const productData = {
+            name: decryptedName,
+            price: decryptedPrice,
+            buys: buys,
+            tags: decryptedTags,
+            system_payments: system_payments,
+            image: decryptedImage,
+            id: product.id
+        }
+        renderProducts.push(productData);
+    }
+
+    res.render("marketplace", {
+        products: renderProducts,
+        message: req.query.message || "",
+        message_success: req.query.message_success || "",
+        sort_method: sort_method,
+        sort_parameter: sort_parameter
+    });
+});
+
 
 app.get("/deleteConversation", (req, res) => {
     if (req.session.username) {
@@ -1407,6 +2045,11 @@ app.post("/executeLogin", async (req, res) => {
                 req.session.user_id = user_database.id;
                 req.session.authedRooms = [];
                 req.session.pfp = user_database.pfp;
+                
+                if (user_database.vendor_id != null) {
+                    req.session.vendor = true;
+                    req.session.vendor_id = user_database.vendor_id;
+                } // make sure to set the actual user's vendor_id to not null when a vendorship is created. Add data to session. then, test.
                 if (req.session.admin) {
                     logger.info(`An admin logged in - ${req.session.username}`);
                 }
@@ -1648,6 +2291,9 @@ admin : admin : 12
 server.listen(PORT, async () => {
     updateUsernameToId()
     updateRoomToId();
+    rePopulateTrieAndDict();
+
+    
     // fs.readFile("public/images/logo.png", (err, data) => {
     //     if (err) {
     //         console.error('Error reading the file:', err);
@@ -1701,5 +2347,11 @@ server.listen(PORT, async () => {
 
 /*
 TODO:
+
+vendor page - listings
+main page - listings
+review system
+buying system
+
 
 */

@@ -1,0 +1,18 @@
+<html>
+    <head>
+        <title>Register to be a vendor</title>
+        <link rel="stylesheet" href="/styles/main.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'vendorship' }) %>
+        <section id="main">
+            <form action="/executeVendorshipRegister" method="POST">
+                <input name="vendor_name" placeholder="your name as a vendor (you will be listed as such)" required>
+                <textarea name="about" placeholder="About you as a vendor"></textarea>
+                <input name="email" placeholder="Your business email">
+                <input name="tags" placeholder="tags">
+                <button type="submit">GO</button>
+            </form>
+        </section>
+    </body>
+</html>

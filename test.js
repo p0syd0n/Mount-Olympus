@@ -1,43 +1,33 @@
-import sqlite3 from 'sqlite3';
-sqlite3.verbose()
-let db = new sqlite3.Database('database/real_database.db');
-db.get("PRAGMA cipher_version;", (err, row) => {
-    if (err) {
-        return console.error('Error retrieving cipher version:', err.message);
-    }
-    console.log(row);
-});
+import { Tree } from 'radix-tree';
 
-db.run("PRAGMA key = 'death to the pope';", (err) => {
-    if (err) {
-        return console.error('Error running PRAGMA key:', err.message);
-    }
-    // Force SQLCipher settings to initialize
-    db.run("PRAGMA cipher_page_size = 4096;", (err) => {
-        if (err) {
-            return console.error('Error running cipher_page_size:', err.message);
-        }
-    });
+// Initialize a radix tree
+const productNamesTree = new Tree();
 
-    db.run("PRAGMA cipher_compatibility = 3;", (err) => {
-        if (err) {
-            return console.error('Error running cipher compatibility:', err.message);
-        }
-    });
+// Add words to the tree, associating each product name with its data
+productNamesTree.add('smartphone', { id: 1, name: 'Smartphone' });
+productNamesTree.add('smartwatch', { id: 2, name: 'Smartwatch' });
+productNamesTree.add('smarthome', { id: 3, name: 'Smart Home Device' });
+productNamesTree.add('speaker', { id: 4, name: 'Bluetooth Speaker' });
+productNamesTree.add('scooter', { id: 5, name: 'Electric Scooter' });
 
-    db.get("PRAGMA integrity_check;", (err, result) => {
-        if (err) {
-            return console.error('Error running integrity check:', err.message);
-        }
-        console.log(result);
-    });
+// Prefix search function
+function searchByPrefix(prefix) {
+  const results = [];
+  
+  // Get the subtree starting at the given prefix
+  const prefixNode = productNamesTree.find(prefix);
+  
+  // If no node found with that prefix, return empty array
+  if (!prefixNode) return results;
 
-    db.prepare("SELECT * FROM users;", (err, row) => {
-        if (err) {
-            return console.error('Error retrieving data:', err.message);
-        }
-        console.log(row);
-    });
-});
+  // Traverse the subtree and collect values
+  prefixNode.children.forEach((node) => {
+    results.push(node.value); // Collect all product data with this prefix
+  });
+  
+  return results;
+}
 
-db.close();
+// Example usage
+console.log(searchByPrefix('smart'));
+// Output: Array of product objects that have names starting with 'smart'

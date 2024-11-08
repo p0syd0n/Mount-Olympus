@@ -1,0 +1,182 @@
+/* Global styles */
+body {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5));
+    color: #e0f7fa; /* Light cyan for readability */
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    color: #e0f7fa;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+a:hover {
+    color: #b0e0e6; /* Light steel blue */
+}
+
+/* Vendor details container */
+.vendor-details {
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    margin-left: 20px;
+}
+
+.vendor-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.vendor-pic {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin-right: 15px;
+    border: 2px solid #b0e0e6;
+}
+
+.vendor-info h1 {
+    font-size: 28px;
+    color: #b0e0e6;
+}
+
+.vendor-info h3 {
+    font-size: 16px;
+    color: #d1d1d1;
+    margin: 4px 0;
+}
+
+/* Product container */
+.product {
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.product:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.product-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.product-pic {
+    width: 100px;
+    height: 100px;
+    border-radius: 10px;
+    margin-right: 15px;
+    border: 1px solid #b0e0e6;
+}
+
+.product-info h1 {
+    font-size: 24px;
+    color: #b0e0e6;
+    margin: 5px 0;
+}
+
+.product-info h3 {
+    font-size: 16px;
+    color: #d1d1d1;
+    margin: 4px 0;
+}
+
+.product-description {
+    line-height: 1.6;
+    margin-top: 10px;
+    color: #e0f7fa;
+}
+
+/* Vendor products section */
+.vendor-products {
+    padding: 20px;
+}
+
+.vendor-products h2 {
+    color: #e0f7fa;
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+/* View product link */
+.view-product-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e0f7fa;
+    border-radius: 5px;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.view-product-link:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Review section */
+.reviews {
+    margin-top: 20px;
+}
+
+.review {
+    background-color: #2c2c2c;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    margin-bottom: 10px;
+}
+
+.review-info h3 {
+    font-size: 14px;
+    color: #b0e0e6;
+    margin-bottom: 5px;
+}
+
+.review-info h5 {
+    font-size: 12px;
+    color: #d1d1d1;
+    margin: 0;
+}
+
+/* Review form */
+.review-form {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.review-form input[name="content"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    background-color: #1f1f1f;
+    color: #e0f7fa;
+    margin-right: 10px;
+}
+
+.review-form button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e0f7fa;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.review-form button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}

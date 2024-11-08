@@ -1,0 +1,38 @@
+<html>
+<head>
+    <title>Vendor Settings</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/vendor_settings.css">
+</head>
+<body>
+    <%- include('nav', {activePage: 'vendorship'}) %>
+    <section id="main">
+        <h1>Vendor Name: <%= vendor_name %></h1>
+
+
+        <form action="/updateVendorSettings" method="POST">
+            <div class="form-group">
+                <label>Vendor Name:</label>
+                <input type="text" name="vendor_name" value="<%= vendor_name %>">
+            </div>
+
+            <label>Created At:</label>
+            <p><%= created_at || '' %>"</p>
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" name="email" value="<%= email || '' %>">
+            </div>
+            <div class="form-group">
+                <label>Tags:</label>
+                <input type="text" name="tags" value="<%= tags || '' %>">
+            </div>
+            <div class="form-group">
+                <label>About:</label>
+                <textarea name="about"><%= about || '' %></textarea>
+            </div>
+
+            <button type="submit">Update Vendor Settings</button>
+        </form>
+    </section>
+</body>
+</html>

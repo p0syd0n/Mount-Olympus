@@ -1,0 +1,44 @@
+<html>
+<head>
+    <title>Marketplace</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/marketplace.css">
+</head>
+<body>
+    <%- include('nav', { activePage: 'marketplace' }) %>
+    <section id="marketplace">
+        <p class="message"><%= message %></p>
+        <p class="message_success"><%= message_success %></p>
+        
+        <!-- Search and Sort Controls -->
+        <form action="/marketplace" method="GET" id="sort-form">
+            <label for="tags">Search by Tags:</label>
+            <input type="text" name="sort_parameter" placeholder="Enter tags" value="<%= sort_parameter != "default" ? sort_parameter : "" %>" />
+            
+            <label for="sort_method">Sort by:</label>
+            <select name="sort_method">
+                <option value="default" <%= sort_method === 'default' ? 'selected' : '' %>>Default</option>
+                <option value="name" <%= sort_method === 'name' ? 'selected' : '' %>>Product Name</option>
+                <option value="tags_all" <%= sort_method === 'tags_all' ? 'selected' : '' %>>Tags (All)</option>
+                <option value="tags_or" <%= sort_method === 'tags_or' ? 'selected' : '' %>>Tags (Any)</option>
+            </select>
+            <button type="submit">Search</button>
+        </form>
+        
+        <!-- Displaying products in horizontal layout -->
+        <div class="products-container">
+            <% for (let i = 0; i < products.length; i++) { %>
+                <div class="product-box">
+                    <img src="data:image/png;base64,<%= products[i].image %>" alt="<%= products[i].name %>" class="product-image"/>
+                    <div class="product-details">
+                        <h3><a href="/product?product_id=<%= products[i].id %>"><%= products[i].name %></a></h3>
+                        <p class="price">$<%= products[i].price %></p>
+                        <p class="tags"><%= products[i].tags %></p>
+                        <p class="buys"><%= products[i].buys %> purchases</p>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+    </section>
+</body>
+</html>
