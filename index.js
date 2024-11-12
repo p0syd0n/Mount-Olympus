@@ -21,7 +21,7 @@ const { render } = require('ejs');
 const multer = require('multer');
 const https = require('https');
 const Trie = require('trie-prefix-tree');
-const Socket = require('blockchain.info/Socket');
+// const Socket = require('blockchain.info/Socket');
 
 const db = new Database('database/database.db');
 
