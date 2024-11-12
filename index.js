@@ -1,44 +1,37 @@
-import express from 'express';
-import path from 'path';
-import session from 'express-session';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import Database from 'better-sqlite3';
-import bcrypt from 'bcrypt';
-import { prompt, hashPassword, deriveKey } from './util.js';
-import crypto from 'crypto';
-import rateLimit from 'express-rate-limit';
-import helmet from 'helmet';
-import winston from 'winston';
-import cors from 'cors';
-import fs from 'fs';
-import bodyParser from 'body-parser'
-import {Server, Socket} from 'socket.io';
-import expressSocketIO from 'express-socket.io-session';
-import http, { request } from 'http';
-import { render } from 'ejs';
-import multer from 'multer';
-import https from 'https';
-import Trie from 'trie-prefix-tree';
+const express = require('express');
+const path = require('path');
+const session = require('express-session');
+const dotenv = require('dotenv');
+const { fileURLToPath } = require('url');
+const { dirname } = require('path');
+const Database = require('better-sqlite3');
+const bcrypt = require('bcrypt');
+const { prompt, hashPassword, deriveKey } = require('./util.js');
+const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const winston = require('winston');
+const cors = require('cors');
+const fs = require('fs');
+const bodyParser = require('body-parser');
+const { Server, Socket } = require('socket.io');
+const expressSocketIO = require('express-socket.io-session');
+const http = require('http');
+const { render } = require('ejs');
+const multer = require('multer');
+const https = require('https');
+const Trie = require('trie-prefix-tree');
+const Socket = require('blockchain.info/Socket');
 
 const db = new Database('database/database.db');
 
-// Ask for the password at the start of the server
-const password = await prompt('Enter your password: ');
-
-// Hash the password using SHA-512
-const hashedPassword = hashPassword(password);
-//const IV = Buffer.from([0x0d, 0x90, 0x71, 0x24, 0x0d, 0xa0, 0x78, 0x54, 0xce, 0xea, 0x90, 0x93, 0x34, 0x5b, 0xc8, 0x62]);
-// Derive the encryption key from the hashed password
-const encryptionKey = deriveKey(hashedPassword);
-
-//console.log(encryptionKey);
-// Now I can interact with the database mwahahahahaa
-
+// Load environment variables
 dotenv.config();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+let encryptionKey;
+
+
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = dirname(__filename);
 let PORT = 2000;
 const topics = {0: "general"}
 
@@ -2271,45 +2264,65 @@ admin : admin : 12
 
 */
 
-server.listen(PORT, async () => {
-    updateUsernameToId()
-    updateRoomToId();
-    rePopulateTrieAndDict();
+(async () => {
+    try {
+        // Prompt for password
+        const password = await prompt('Enter your password: ');
 
-    
-    // fs.readFile("public/images/logo.png", (err, data) => {
-    //     if (err) {
-    //         console.error('Error reading the file:', err);
-    //         return;
-    //     }
-    
-    //     // Convert to Base64
-    //     const base64String = data.toString('base64');
-    //     setPfp(1, base64String)
-    //     console.log(base64String); // Logs the Base64 string
-    // });
-    
-    //setUserProfilePicture(12, "public/images/logo.png")
-    //addPublicKey(11, "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----")
+        // Hash the password and derive encryption key
+        const hashedPassword = hashPassword(password);
+        encryptionKey = deriveKey(hashedPassword);
 
-    //console.log(encrypt("signage"))
-    //createRoom("private room", "password");
-    //createRoom("private room", "password");
-    //getAllDecryptedLogs()
-    //createUser('admin', 'admin', 1, "I'm an admin.", "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----", 1, "", "admin, tag1", "admin@admin.com");
+        console.log('Encryption key has been successfully derived.');
+    } catch (error) {
+        console.error('Error during password prompt or encryption setup:', error);
+        process.exit(1); // Exit if there is an error
+    }
+})().then(() => {
+    // Place any code here that depends on `encryptionKey`
+    console.log('Now ready to start the server with encryption key initialized.');
+    server.listen(PORT, async () => {
+        updateUsernameToId()
+        updateRoomToId();
+        rePopulateTrieAndDict();
     
-    //createTopic("General");
-    //createPost("Test Post!: 2", 1, 3, "This is the content of the second post.", "general, discussion");
-    //createComment(1, 3, "Test Comment!");
-    //createComment(1, 3, "Test Comment: 2!");
-    // const hash = await bcrypt.hash("message", 10)
-    // console.log(hash);
-    // const result = await bcrypt.compare("user2", "$2b$10$wOKHR84iKgwf49OAVx0WueWb.EmvCzZtoEm2s8Wu9A.nQhfoXn82e")
-    // console.log(result)
-    // console.log(decrypt("c87c7de12925ae75891569dc8d5d516b69ba99cd2f74781943b98cf60ee318a733dde41e6661708422d7ba42b274e0bf7c4891709b5b0a9fc3db0b75383df8d963bc051b9e2eab24ceafa3c1fb0ae44a"))
+        
+        // fs.readFile("public/images/logo.png", (err, data) => {
+        //     if (err) {
+        //         console.error('Error reading the file:', err);
+        //         return;
+        //     }
+        
+        //     // Convert to Base64
+        //     const base64String = data.toString('base64');
+        //     setPfp(1, base64String)
+        //     console.log(base64String); // Logs the Base64 string
+        // });
+        
+        //setUserProfilePicture(12, "public/images/logo.png")
+        //addPublicKey(11, "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----")
     
-    console.log("Listening on port " + PORT);
+        //console.log(encrypt("signage"))
+        //createRoom("private room", "password");
+        //createRoom("private room", "password");
+        //getAllDecryptedLogs()
+        //createUser('admin', 'admin', 1, "I'm an admin.", "-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBP3NRbSxkemKcre2ZJvGWTpb8b Mkv3LEr3wOet9YLMaCsMPxlL+WTHeKblDAk4QorB6TYMY4JXgyJhOnnv4tfgevJM WWTQfUnE+2qUp/EfQgX4hMq5rYrvmLfUwJ96RrYs3mFraszAY8GahjhXXQFYDbVz 5AZcXM9wiQVycisxAgMBAAE= -----END PUBLIC KEY-----", 1, "", "admin, tag1", "admin@admin.com");
+        
+        //createTopic("General");
+        //createPost("Test Post!: 2", 1, 3, "This is the content of the second post.", "general, discussion");
+        //createComment(1, 3, "Test Comment!");
+        //createComment(1, 3, "Test Comment: 2!");
+        // const hash = await bcrypt.hash("message", 10)
+        // console.log(hash);
+        // const result = await bcrypt.compare("user2", "$2b$10$wOKHR84iKgwf49OAVx0WueWb.EmvCzZtoEm2s8Wu9A.nQhfoXn82e")
+        // console.log(result)
+        // console.log(decrypt("c87c7de12925ae75891569dc8d5d516b69ba99cd2f74781943b98cf60ee318a733dde41e6661708422d7ba42b274e0bf7c4891709b5b0a9fc3db0b75383df8d963bc051b9e2eab24ceafa3c1fb0ae44a"))
+        
+        console.log("Listening on port " + PORT);
+    });
 });
+
+
 
 
 

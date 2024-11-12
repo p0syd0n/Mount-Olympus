@@ -25,6 +25,11 @@
                         <h3>Tags: <%= tags %></h3>
                         <h3>System Payments: <%= system_payments %></h3>
                         <h3><%= notes %></h3>
+                        <% if (system_payments == 1) { %>
+                            <h4><a href="/buyProduct?product_id= <%= id %>">Buy</a></h4>
+                        <% } else { %>
+                            <h4>This product is not available for purchase through the Mount Olympus system. Please contact the vendor.</h4>
+                        <% } %>
                     </div>
                 </div>
                 <p class="product-description"><%= description %></p>

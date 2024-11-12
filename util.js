@@ -1,7 +1,7 @@
-import readline from 'readline';
-import crypto from 'crypto';
+const readline = require('readline');
+const crypto = require('crypto');
 
-export function prompt(question) {
+function prompt(question) {
     return new Promise((resolve) => {
         const rl = readline.createInterface({
             input: process.stdin,
@@ -17,7 +17,7 @@ export function prompt(question) {
 }
 
 // Function to derive an encryption key from the hashed password
-export function deriveKey(hashedPassword) {
+function deriveKey(hashedPassword) {
     // You can use a unique salt if necessary
     const salt = 'pepper#$@I)(U$)U@)$#JFOIJQ$#)IFH#$J(PFIHJ#Q(PFHJ@Q(#FHQJ#$(FH#$(FH#$(QFH#$(F*H#$(*FH(EQFHQOEIWFNWOEQJFQOEFNWEKOFNOEW';  // Use a consistent salt for key derivation
     const key = crypto.pbkdf2Sync(hashedPassword, salt, 100000, 32, 'sha512'); // 32 bytes for AES-256
@@ -25,6 +25,13 @@ export function deriveKey(hashedPassword) {
 }
 
 // Function to hash the password using SHA-512
-export function hashPassword(password) {
+function hashPassword(password) {
     return crypto.createHash('sha512').update(password).digest('hex');
 }
+
+// Export the functions using module.exports
+module.exports = {
+    prompt,
+    deriveKey,
+    hashPassword
+};
