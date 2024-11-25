@@ -21,7 +21,11 @@ const { render } = require('ejs');
 const multer = require('multer');
 const https = require('https');
 const Trie = require('trie-prefix-tree');
-// const Socket = require('blockchain.info/Socket');
+
+const BitcoinCore = require('bitcoin-core');
+const { getTransactions } = require('./blockchain.js');
+
+
 
 const db = new Database('database/database.db');
 
@@ -32,32 +36,47 @@ let encryptionKey;
 
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = dirname(__filename);
-let PORT = 2000;
+let PORT = 4000;
 const topics = {0: "general"}
 
 
 const app = express();
 let server;
+// Check global variable if deploy is 1. If it is, get ssl certs and start https server
 if (process.env.DEPLOY == "1") {
     const sslOptions = {
         key: fs.readFileSync('/etc/letsencrypt/live/23-92-19-124.ip.linodeusercontent.com/privkey.pem'),
         cert: fs.readFileSync('/etc/letsencrypt/live/23-92-19-124.ip.linodeusercontent.com/fullchain.pem'),
     };
     server = https.createServer(sslOptions, app);
-    PORT = 443;
+    PORT = 442;
 }
 else {
+    // Otherwise, start http server.
     server = http.createServer(app);
 }
+// Socket server
 const io = new Server(server);
+// Listing valid auth tokens and request tokens
 let validAuthTokens = [];
 let requestTokens = {};
+// Log path
 const logPath = "app.log";
+// Dictionaries for later O(1) access
 let usernameToId = {}
 let roomNameToId = {}
 
 const storage = multer.memoryStorage(); // Store files in memory as Buffer
 const upload = multer({ storage: storage });
+
+
+// const client = new Client({
+//     network: 'testnet', // or 'testnet', 'regtest'
+//     username: process.env.USERNAME_BTC,
+//     password: process.env.PASSWORD_BTC,
+//     host: HOST_BTC,
+//     port: PORT_BTC
+// });
 
 // Set strong CSP policies
 const cspPolicy = {
@@ -131,10 +150,14 @@ const logger = winston.createLogger({
 // Add custom colors to the console
 winston.addColors(customLevels.colors);
 
-
+// For searching products by name
 let product_names_tree = Trie([]);
 let tag_names_dict = {};
 let name_product_dict = {};
+
+/**
+ * Repopulated the product names trie and dict
+ */
 function rePopulateTrieAndDict() {
     // Reset the Trie and Tag Dictionary once at the beginning
     product_names_tree = Trie([]);
@@ -188,7 +211,13 @@ function rePopulateTrieAndDict() {
 
         // Process tags
         const tags = decrypt(data.tags).split(',').map(tag => tag.trim()); // Ensure tags are trimmed
-
+        // The tag_names_dict is structured as so:
+        /*
+        {
+            "tag1": [ Array of posts with tag tag1 ]
+            "tag2": [ Array of posts with tag tag2 ]
+        }
+        */
         for (let tag of tags) {
             if (tag_names_dict[tag]) {
                 tag_names_dict[tag].push(data);
@@ -197,10 +226,13 @@ function rePopulateTrieAndDict() {
             }
         }
     }
-    console.log(tag_names_dict)
+    //console.log(tag_names_dict)
 }
 
-
+/**
+ * Search  for all posts with any of the specified tags
+ * @param {string} tags comma-seperated list of tags
+ */
 function searchTagsOR(tags) {
     // Split the input into individual tags and trim whitespace
     const tagsArray = tags.split(',').map(tag => tag.trim());
@@ -224,6 +256,10 @@ function searchTagsOR(tags) {
     return Array.from(resultSet);
 }
 
+/**
+ * Search for all posts with all of the specified tags.
+ * @param {string} tags comma-seperated list of tags
+ */
 function searchTagsAND(tags) {
     // Split the input into individual tags and trim whitespace
     const tagsArray = tags.split(',').map(tag => tag.trim());
@@ -245,7 +281,9 @@ function searchTagsAND(tags) {
 }
 
 
-
+/**
+ * Update the username : id dictionary
+ */
 function updateUsernameToId() {
     const stmt = db.prepare("SELECT * FROM users;");
     const result = stmt.all();
@@ -254,6 +292,9 @@ function updateUsernameToId() {
     }
 }
 
+/**
+ * Update the room : id dictionary
+ */
 function updateRoomToId() {
     const stmt = db.prepare("SELECT * FROM rooms;");
     const result = stmt.all();
@@ -320,17 +361,26 @@ function getPublicKey(user_id) {
 /**
  * is a string real or is it the square root of -1 ? That is the question
  * @param {string} value just checks if a variable is a string and not empty.
- * @returns 
+ * @returns boolean
  */
 function isItReal(value) {
     return typeof value === 'string' && value.trim().length > 0;
 }
 
+/**
+ * Get vendor data from his id
+ * @param {int} vendor_id the id of the vendor
+ * @returns object with data
+ */
 function getVendorData(vendor_id) {
     const stmt = db.prepare(`SELECT * FROM vendors WHERE id = ?`);
     return stmt.get(vendor_id);
 }
-
+/**
+ * Get user data by his id
+ * @param {int} user_id the user_id of the user
+ * @returns object with data
+ */
 function getUser(user_id) {
     const stmt = db.prepare(`SELECT * FROM users WHERE id = ?`);
     return stmt.get(user_id);
@@ -410,7 +460,11 @@ function getProductDataById(product_id) {
     }
 }
 
-
+/**
+ * Delete a room by its id
+ * @param {int} roomId the id of the room to delete
+ * @returns {int} 1 in case of success
+ */
 function deleteRoom(roomId) {
     const stmt = db.prepare(`DELETE FROM rooms WHERE id = ?`);
     stmt.run(roomId);
@@ -460,6 +514,15 @@ function getMessages(users) {
     return stmt.all(users);
 }
 
+/**
+ * Update the account for a vendor.
+ * @param {int} vendor_id The id of the vendor to update
+ * @param {string} vendor_name The vendor name to be set
+ * @param {string} email The email of the vendor to be set
+ * @param {string} about The "about" of the vendor to be set
+ * @param {string} tags The tags of the vendor to be set
+ * @returns Result of SQL query
+ */
 function updateVendorSettings(vendor_id, vendor_name, email="", about="", tags="") {
     const encryptedName = encrypt(vendor_name);
     const encryptedEmail = encrypt(email);
@@ -505,6 +568,11 @@ async function getPosts(topic_id, order="desc_aura") {
     
 }
 
+/**
+ * Delete the conversation between two users (delete all messages between them)
+ * @param {string} users The users parameter of the conversation
+ * @returns The result of the SQL query
+ */
 async function deleteConversation(users) {
     const stmt = db.prepare("DELETE FROM direct_messages WHERE users=?");
     return stmt.run(users);
@@ -568,6 +636,11 @@ function getMessagesRoom(roomId) {
     return stmt.all(roomId);
 }
 
+/**
+ * 
+ * @param {int} user_id The user id 
+ * @returns {dict} { user_id: id, username: username }
+ */
 async function getUsersForDMs(user_id) {
     try {
         // Query to retrieve all direct messages
@@ -644,6 +717,11 @@ async function getRooms() {
     return stmt.all();
 }
 
+/**
+ * Get products by a vendor's id
+ * @param {int} vendor_id The vendor id of who's products you want to get
+ * @returns List of products
+ */
 function getProducts(vendor_id) {
     const stmt = db.prepare(`SELECT * FROM catalogue WHERE vendor_id = ?`)
     return stmt.all(vendor_id);
@@ -749,6 +827,20 @@ function getIdByUsername(username) {
     return user ? user.id : null;
 }
 
+/**
+ * Create a new product
+ * @param {int} vendor_id The vendor id of who is creating the product
+ * @param {string} name The name of the product
+ * @param {string} description The description of the product
+ * @param {string} price The shown price
+ * @param {string} tags The products tags
+ * @param {string} notes Notes about the product
+ * @param {string} image Image for product (base64)
+ * @param {int} system_price System price per unit. Eg, selling 20 USD / 5 spoons = 20
+ * @param {string} address BTC address for this product
+ * @param {boolean} system_payments Whether the product is to use system payments
+ * @returns Result of the SQL query
+ */
 async function createProduct(vendor_id, name, description, price, tags, notes, image, system_price=null, address=null, system_payments=true) {
     try {
         console.log("name: " + name);
@@ -783,6 +875,15 @@ async function createProduct(vendor_id, name, description, price, tags, notes, i
 }
 
 
+/**
+ * Create a vendorship (associated with a user account)
+ * @param {int} user_id The user id of who is creating a vendorship
+ * @param {string} about "about" the vendor
+ * @param {string} email The email of the vendor
+ * @param {string} tags Comma-seperated list of tags for the vendor
+ * @param {string} vendor_name The name of the vendor
+ * @returns Result of SQL query
+ */
 function createVendorship(user_id, about, email, tags, vendor_name) {
     const encryptedAbout = encrypt(about);
     const encryptedEmail = encrypt(email);
@@ -803,6 +904,10 @@ function createVendorship(user_id, about, email, tags, vendor_name) {
     }
 }
 
+/**
+ * Get products by the amount of buys they have
+ * @returns List of products by the amount of buys they have (descending)
+ */
 function getProductsByBuys() {
     const stmt = db.prepare("SELECT * FROM catalogue ORDER BY buys DESC");
     return stmt.all();
@@ -1418,6 +1523,8 @@ app.post("/updateVendorSettings", (req, res) => {
     updateVendorSettings(req.session.vendor_id, vendor_name, email, about, tags);
     res.redirect("/vendorSettings");
 })
+
+
 
 // Chat room access handling
 app.get("/chatroom", async (req, res) => {
@@ -2285,6 +2392,7 @@ admin : admin : 12
         updateUsernameToId()
         updateRoomToId();
         rePopulateTrieAndDict();
+
     
         
         // fs.readFile("public/images/logo.png", (err, data) => {

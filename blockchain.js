@@ -1,10 +1,17 @@
 const axios = require('axios');
-const {SocksProxyAgent} = require('socks-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
-const agent = new SocksProxyAgent('socks5h://127.0.0.1:9050'); // Tor SOCKS5 proxy
+// Tor SOCKS5 proxy
+const agent = new SocksProxyAgent('socks5h://127.0.0.1:9050'); 
 
+// Blockstream or Blockcypher API URL for fetching Bitcoin transactions
 const blockcypherUrl = 'https://api.blockcypher.com/v1/btc/test3/addrs';
 
+/**
+ * Fetch transactions for a given Bitcoin address through the Tor network.
+ * @param {string} address - The Bitcoin address to fetch transactions for.
+ * @returns {Promise<Object>} - The transaction data for the address.
+ */
 async function getTransactions(address) {
     try {
         console.log(`Fetching transactions for address: ${address}`);
@@ -29,9 +36,4 @@ async function getTransactions(address) {
     }
 }
 
-(async () => {
-    const address = "tb1p9qsz6jcehlk30k0hl9fgujcyx0ym0quehwhcr2jd732far44ylmqhsygmw";
-    const results = await getTransactions(address);
-    console.log(results);
-})();
-
+module.exports = { getTransactions };
