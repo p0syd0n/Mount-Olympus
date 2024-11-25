@@ -1,6 +1,6 @@
 # Mount Olympus
 ## Welcome to Mount Olympus, the platform of choice for privacy enthusiasts.
-Mount Olympus is a secure and quantum proof forum/messaging/selling/storage platform. If your government or other malicious agencies who hate privacy come after you, you want your information to be safe. Constantly relying on random, scattered services is frankly annoying. Mount Olympus is the solution. Offered is a quantum-proof platform that has it all - direct messaging, group chats, a forum, cloud storage (soon), and a vendor section (soon).
+Mount Olympus is a secure and quantum resistant forum/messaging/selling/storage platform. If your government or other malicious agencies who hate privacy come after you, you want your information to be safe. Constantly relying on random, scattered services is frankly annoying. Mount Olympus is the solution. Offered is a quantum-proof platform that has it all - direct messaging, group chats, a forum, cloud storage (soon), and a vendor section (soon).
 
 ### Forum
 Share information about various topics in the forum. The forum is accessible to everyone with an account.
