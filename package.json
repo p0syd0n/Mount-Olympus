@@ -9,8 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "better-sqlite3": "^11.3.0",
+    "bitcoin-core": "^4.2.0",
     "blockchain.info": "^2.12.1",
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
@@ -27,6 +29,8 @@
     "ntru": "^4.0.4",
     "radix-tree": "^0.3.4",
     "socket.io": "^4.8.1",
+    "socks-proxy-agent": "^8.0.4",
+    "socks5-https-client": "^1.2.1",
     "trie-prefix-tree": "^1.5.1",
     "winston": "^3.15.0"
   },
