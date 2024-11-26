@@ -21,7 +21,7 @@
             <h2>You user id is: <%= user_id %></h2>
             <h5>You have conversations with:</h5>
                 <% for (let i = 0; i < users.length; i++) { %>
-                    <a href="/goDirectMessages?user_id=<%= users[i].user_id %>"><%= users[i].username %></a> <a href="/deleteConversation?user_id=<%= users[i].user_id %>">DELETE</a>
+                    <a href="/goToDirectMessages?user_id=<%= users[i].user_id %>"><%= users[i].username %></a> <a href="/deleteConversation?user_id=<%= users[i].user_id %>">DELETE</a>
                 <% } %>    
 
             <form action="/goToDirectMessages" method="GET">
