@@ -1,0 +1,23 @@
+// Define custom logging levels
+const customLevels = {
+    levels: {
+        csp_violation: 0,
+        fatal: 0,  // Critical system errors
+        error: 1,  // Regular errors
+        warn: 2,   // Warnings
+        info: 3,   // General info messages
+        verbose: 4, // More detailed messages
+        debug: 5,  // Debugging information
+        trace: 6   // Very detailed tracing information
+    },
+    colors: {
+        csp_violation: 'red',
+        fatal: 'red',
+        error: 'red',
+        warn: 'yellow',
+        info: 'green',
+        verbose: 'cyan',
+        debug: 'blue',
+        trace: 'magenta'
+    }
+};

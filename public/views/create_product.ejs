@@ -40,6 +40,7 @@
                 <br>
                 <label for="address">BTC address for this product (this will be the address receiving payments from buyers) (This is not necesary if you opted to disable auto-order-system):</label>
                 <input name="address" placeholder="BTC address">
+                <%- include('captcha') %>
                 <button type="submit">Create</button>
             </form>
         </section>

@@ -21,7 +21,8 @@ const { render } = require('ejs');
 const multer = require('multer');
 const https = require('https');
 const Trie = require('trie-prefix-tree');
-
+const { v4: uuidv4 } = require('uuid');
+const { createCanvas } = require('canvas');
 const BitcoinCore = require('bitcoin-core');
 const { getTransactions } = require('./blockchain.js');
 
@@ -60,6 +61,7 @@ const io = new Server(server);
 // Listing valid auth tokens and request tokens
 let validAuthTokens = [];
 let requestTokens = {};
+const captchaMap = new Map();
 // Log path
 const logPath = "app.log";
 // Dictionaries for later O(1) access
@@ -78,6 +80,50 @@ const upload = multer({ storage: storage });
 //     port: PORT_BTC
 // });
 
+setInterval(() => {
+    const now = Date.now();
+    const expiryTime = 3 * 60 * 1000; // 3 minutes
+    captchaMap.forEach((id, entry) => {
+        if (now - entry.timestamp > expiryTime) {
+            captchaList.delete(id);
+        }
+    });
+}, 2 * 60 * 1000); // 2 minutes
+
+
+/*
+Request flow:
+HTTP GET /createOrder
+it hits /createOrder, and goes thru default stuff
+After that, middleware picks it up and adds captcha data to res.locals
+Middleware also adds captcha data to captchaMap
+HTTP POST /executeCreateOrder
+captchaId is in a hidden field, captchaCode is input by the user
+They are checked against captchaMap to verify
+*/
+
+function captchaMiddleware(req, res, next) {
+    const canvas = createCanvas(100, 40);
+    const ctx = canvas.getContext('2d');
+
+    // Generate random CAPTCHA code
+    const captchaCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const captchaId = uuidv4(); // Unique ID for this CAPTCHA
+
+    // Draw CAPTCHA
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, 0, 100, 40);
+    ctx.font = '28px Arial';
+    ctx.fillStyle = '#000';
+    ctx.fillText(captchaCode, 10, 30);
+
+    captchaMap.set(captchaId, { code: captchaCode, timestamp: Date.now() });
+    const base64 = canvas.toDataURL();
+    res.locals.captchaId = captchaId
+    res.locals.captchaImage = base64;
+
+    next();
+}
 // Set strong CSP policies
 const cspPolicy = {
     directives: {
@@ -236,7 +282,6 @@ function rePopulateTrieAndDict() {
 function searchTagsOR(tags) {
     // Split the input into individual tags and trim whitespace
     const tagsArray = tags.split(',').map(tag => tag.trim());
-    console.log(tagsArray);
 
     // A Set to store unique products
     let resultSet = new Set();
@@ -244,7 +289,6 @@ function searchTagsOR(tags) {
     // Loop over each tag, find matching products, and add them to the result set
     tagsArray.forEach(tag => {
         const products = tag_names_dict[tag];
-        console.log(products);
         if (products) {
             products.forEach(product => {
                 resultSet.add(product); // Add product to the result set
@@ -351,8 +395,6 @@ function decrypt(encryptedData) {
  * @returns public key, string. Except if the user doesnt exist: -1
  */
 function getPublicKey(user_id) {
-    console.log(user_id)
-    console.log("GETTING THE ABOVE PUBLIC KEY!!!!!!!")
     const stmt = db.prepare(`SELECT public_key FROM users WHERE id = ?`);
     const result = stmt.get(user_id);
     return result ? result.public_key : -1
@@ -408,11 +450,8 @@ function getAllDecryptedLogs() {
             const split_ = entry.split(" ");
             const time = split_[0];
             const type = split_[1];
-            console.log(split_);
             const data_encrypted = split_[2].replace("\"", "").replace("\"", "");
-            console.log(data_encrypted);
             const data_decrypted = decrypt(data_encrypted);
-            console.log(data_decrypted)
             log.push(`${time} ${type} ${data_decrypted}`);
         }
 
@@ -443,7 +482,6 @@ function getProductData(vendor_id, product_name) {
 }
 
 function getProductDataById(product_id) {
-    console.log(product_id);
     try {
         // Prepare and execute the SQL query to get the product details
         const query = db.prepare(`
@@ -539,7 +577,6 @@ function updateVendorSettings(vendor_id, vendor_name, email="", about="", tags="
  * @returns Result of SQL query
  */
 async function getPosts(topic_id, order="desc_aura") {
-    console.log(topic_id, order)
     let order_suffix;
     // Times ascending = oldest to newest
     switch (order) {
@@ -560,10 +597,7 @@ async function getPosts(topic_id, order="desc_aura") {
             break;
     }
     const query = `SELECT * FROM posts WHERE topic_id = ? ${order_suffix}`;
-    console.log(query);
-    console.log(topic_id);
     const stmt = db.prepare(query);
-    console.log(stmt);
     return stmt.all(topic_id);
     
 }
@@ -586,6 +620,26 @@ async function getUsers() {
     const stmt = db.prepare("SELECT * FROM users;");
     const result = await stmt.all();
     return result;
+}
+
+async function checkCaptcha(req) {
+    try {
+        if (captchaMap.has(req.body.captchaId) && captchaMap.get(req.body.captchaId).code === req.body.captchaCode) {
+            logger.debug("Valid CAPTCHA");
+            try {
+                captchaMap.delete(req.body.captchaId); // Remove after use
+            } catch (e) {
+                logger.error("Failed to delete captcha from the map");
+            }
+            return true;
+        } else {
+            logger.debug("Invalid CAPTCHA");
+            return false;
+        }
+    } catch (e) {
+        return false;
+    }
+
 }
 
 /**
@@ -618,7 +672,6 @@ async function createUser(username, password, admin, about="", public_key="", gl
     const encryptedPublicKey = isItReal(public_key) != "" ? encrypt(public_key) : "";
     const encryptedTags = isItReal(tags) != "" ? encrypt(tags) : "";
     const encryptedEmail = isItReal(email) != "" ? encrypt(email) : "";
-    console.log(encryptedPassword, encryptedUsername, admin, global_bool, encryptedAbout, encryptedPublicKey, encryptedTags, encryptedEmail);
     
 
 
@@ -637,47 +690,45 @@ function getMessagesRoom(roomId) {
 }
 
 /**
+ * Create an order
+ * @param {int} buyer_id The id of the buyer
+ * @param {int} product_id The id of the product
+ * @param {int} amount The amount of products bought
+ * @returns Result of the SQL query
+ */
+function createOrder(buyer_id, product_id, amount) {
+    if (amount <= 0 || buyer_id <= 0 || amount <= 0) return -1;
+    const stmt = db.prepare(`INSERT INTO orders (buyer_id, amount, product_id) VALUES (?, ?, ?)`);
+    const encrypted_product_id = encrypt(product_id);
+    const encrypted_buyer_id = encrypt(buyer_id);
+    const encrypted_amount = encrypt(amount);
+    const result = stmt.run(encrypted_buyer_id, encrypted_amount, encrypted_product_id);
+    return result;
+}
+
+/**
  * 
  * @param {int} user_id The user id 
- * @returns {dict} { user_id: id, username: username }
+ * @returns {array} [{ user_id: id, username: username }]
  */
 async function getUsersForDMs(user_id) {
-    try {
-        // Query to retrieve all direct messages
-        const query = `SELECT * FROM direct_messages`;
-
-        // Prepare the statement
-        const stmt = db.prepare(query);
-
-        // Execute the query to get all entries
-        const results = stmt.all(); // Get all entries
-
-        // Set to store unique user data dictionaries
-        const userDicts = [];
-
-        // Process each result to decrypt and extract other user IDs
-        for (const row of results) {
-            console.log(row.users)
-
-            const userArray = row.users.split(','); // Split into individual IDs
-
-            // Check if the current user_id is in the decrypted users
-            if (userArray.includes(user_id.toString())) {
-                // Add other user IDs and their usernames to the list
-                for (const id of userArray) {
-                    if (id !== user_id.toString()) { // Ensure we don't include the current user's ID
-                        const username = decrypt(getUsernameById(id)); // Get and decrypt the username
-                        userDicts.push({ user_id: id, username: username }); // Add to the list
-                    }
-                }
-            }
-        }
-        console.log(userDicts);
-        return userDicts; // Return the list of user dictionaries
-    } catch (error) {
-        console.error("Error retrieving users for DMs:", error);
-        return []; // Return an empty array in case of an error
+    const stmt = db.prepare("SELECT users FROM direct_messages;");
+    const result = await stmt.all();
+    let refined = [];
+    for (let entry of result) {
+        refined.push(entry.users);
     }
+
+    const users = refined.filter((value, index, self) => self.indexOf(value) === index);
+    const final_array  = []
+    for (let user_pair of users) {
+        let user1 = user_pair.split(",")[0];
+        let user2 = user_pair.split(",")[1];
+        let other_user = (user1 == user_id) ? user2 : user1;
+        const other_user_username = decrypt(getUsernameById(other_user));
+        final_array.push({user_id: other_user, username: other_user_username});
+    }
+    return final_array;
 }
 
 
@@ -763,7 +814,7 @@ async function createTopic(title) {
  * @returns {string} The post data (if the SQL doesn't fail).[ENCRYPTED]
  */
 function getPostById(postId) {
-    console.log("getting post "+postId)
+    logger.debug("getting post "+postId)
     const stmt = db.prepare('SELECT * FROM posts WHERE id = ?');
     return stmt.get(postId); // Returns a single post as an object
 }
@@ -774,11 +825,8 @@ function getPostById(postId) {
  * @returns {string} The comment data (if the SQL doesn't fail).[ENCRYPTED]
  */
 function getCommentById(commentId) {
-    console.log("using funciton")
     const stmt = db.prepare('SELECT * FROM comments WHERE id = ?');
-    console.log("result: ")
     const result = stmt.get(commentId); // Returns a single post as an object
-    console.log(result);
     return result;
 }
 
@@ -843,7 +891,6 @@ function getIdByUsername(username) {
  */
 async function createProduct(vendor_id, name, description, price, tags, notes, image, system_price=null, address=null, system_payments=true) {
     try {
-        console.log("name: " + name);
 
         // Encrypt all values, ensure encrypt is async if it involves promises
         const encryptedName = await encrypt(name);
@@ -958,7 +1005,6 @@ function getComments(post_id, order="aura_desc") {
  */
 function plusMinusAura(userId, amount) {
     const currentAura = getAuraById(userId);
-    console.log(currentAura);
     if (currentAura === null) return false;
 
     const newAura = currentAura + amount;
@@ -977,35 +1023,28 @@ function plusMinusAura(userId, amount) {
 async function voteContent(id, userId, action, type) {
     let content;
     if (type == 'post') {
-
         content = await getPostById(id);
     } else if (type == 'comment') {
-        console.log("getting comment")
         content = await getCommentById(id); // Assuming getCommentById is implemented
     } else {
-        console.log("Type dont match: " + type)
     }
-    console.log("CONTENT:\n" + content)
 
     if (!content) return false;
 
     const votedUsers = content.voted_user_ids ? content.voted_user_ids.split(',') : [];
-    console.log(votedUsers);
     if (votedUsers.includes(String(userId))) return false; // Already voted
-    console.log("not voted yet");
 
     // Calculate new content aura
     const newAura = action === 'up' ? content.aura + 1 : content.aura - 1;
-    plusMinusAura(userId, action === 'up' ? 1 : -1); // Adjust user aura (giving the poster aura)
+
+    plusMinusAura(content.user_id, action === 'up' ? 1 : -1); // Adjust user aura (giving the poster aura)
 
     votedUsers.push(String(userId));
     const updatedVotedUsers = votedUsers.join(',');
 
     const table = type === 'post' ? 'posts' : 'comments';
     const stmt = db.prepare(`UPDATE ${table} SET aura = ?, voted_user_ids = ? WHERE id = ?`);
-    console.log(stmt);
     const result = stmt.run(newAura, updatedVotedUsers, id).changes > 0;
-    console.log(result);
 }
 
 /**
@@ -1077,7 +1116,7 @@ app.use(express.static(__dirname + '/public'));
 app.set('views', path.join(__dirname, '/public/views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // Make sure this is before your routes
-
+app.use(['/createAccount', '/roomLogin', '/createOrder', '/createPost', '/createProduct', '/createRoom', '/vendorshipRegister', '/login'], captchaMiddleware);
 app.use(helmet.contentSecurityPolicy(cspPolicy));
 const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
@@ -1111,7 +1150,7 @@ io.use(expressSocketIO(sessionMiddleware, {
 // Routes
 
 app.post("/test", (req, res) => {
-    console.log(req.body);
+    logger.info(req.body);
 });
 
 // Reporting endpoint for CSP violations
@@ -1138,7 +1177,6 @@ app.get("/createPost", (req, res) => {
 
 app.get("/", (req, res) => {
     const referer = req.get('Referer');
-    console.log(referer);
     if (req.session.admin) {
         try {
             const logs = getAllDecryptedLogs();
@@ -1165,6 +1203,8 @@ app.get("/login", (req, res) => {
 app.get("/generateKeypair", (req, res) => {
     res.render("generate_keypair");
 });
+
+
 
 app.get("/voteContent", (req, res) => {
     if (!req.session.username) {
@@ -1221,11 +1261,13 @@ app.get("/forum", async (req, res) => {
     }
 });
 
-app.post("/executeCreatePost", (req, res) => {
+app.post("/executeCreatePost", async (req, res) => {
     if (!req.session.username) {
         res.redirect("/login");
         return;
     }
+    const captcha = await checkCaptcha(req)
+    if (!captcha) return res.redirect("/forum?message=Incorrect or expired captcha");
     
     const { title = "", content = "", topic = "", tags = "" } = req.body;
 
@@ -1297,13 +1339,15 @@ app.get("/vendorshipRegister", (req, res) => {
     res.render("vendorship_register");
 });
 
-app.post("/executeVendorshipRegister", (req, res) => {
+app.post("/executeVendorshipRegister", async (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
     if (req.session.vendor) {
         return res.redirect("/vendorship");
     }
+    const captcha = await checkCaptcha(req)
+    if (!captcha) return res.redirect("/error?message=Incorrect or expired captcha")
     const aura = getAuraById(req.session.user_id);
     const { vendor_name, about, email, tags } = req.body;
     if (!isItReal(vendor_name) || !isItReal(about) || !isItReal(email) || !isItReal(tags)) return res.redirect("/vendorshipRegister");
@@ -1355,8 +1399,9 @@ app.post("/executeCreateProduct", upload.single('image'), async (req, res) => {
     if (!req.session.vendor) {
         return res.redirect("/vendorship");
     }
+    const captcha = await checkCaptcha(req)
+    if (!captcha) res.redirect("/createProduct?message=Incorrect or expired captcha");
     const { name, description, price, tags, notes, system_price, address, system_payments } = req.body;
-    console.log(name);
     if (!isItReal(name) || !isItReal(description) || !isItReal(price) || !isItReal(tags) || !isItReal(notes)) {
         return res.redirect("/createProduct");
     }
@@ -1388,10 +1433,7 @@ app.post("/executeCreateProduct", upload.single('image'), async (req, res) => {
     }
 
     //console.log(result)
-    console.log(req.session.vendor_id);
-    console.log(name);
     const productData = await getProductData(req.session.vendor_id, name);
-    console.log("data: " + productData)
     
     const id = productData ? productData.id : res.redirect("/createProduct?message=an error occured")
     res.redirect("/product?product_id="+id)
@@ -1409,7 +1451,6 @@ app.get("/product", (req, res) => {
 
     const productData = getProductDataById(product_id);
     const stringProductData = JSON.stringify(productData);
-    console.log(stringProductData);
     const decryptedDescription = decrypt(productData.description);
     const decryptedPrice = decrypt(productData.price);
     const decryptedName = decrypt(productData.name);
@@ -1493,6 +1534,10 @@ app.get("/info", (req, res) => {
     res.render("info", {message: req.query.message ? req.query.message : "No info"})
 })
 
+app.get("/error", (req, res) => {
+    res.render("error", {message: req.query.message ? req.query.message : "No error message"})
+})
+
 app.get("/vendorSettings", (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
@@ -1519,7 +1564,6 @@ app.post("/updateVendorSettings", (req, res) => {
         return res.redirect("/vendorship");
     }
     const { vendor_name, email, about, tags } = req.body;
-    console.log(vendor_name, email, about, tags);
     updateVendorSettings(req.session.vendor_id, vendor_name, email, about, tags);
     res.redirect("/vendorSettings");
 })
@@ -1596,7 +1640,6 @@ app.get("/account", (req, res) => {
         const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
         const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
 
-        console.log(username, aura, admin, about, global, "pfp", tags, email)
 
         res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp, tags, email})
     } else {
@@ -1604,6 +1647,29 @@ app.get("/account", (req, res) => {
     }
 })
 
+app.get('/createOrder', (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const product_id = req.query.product_id;
+    if (!product_id) return res.redirect("/error?message=Please go back and pick a valid product id");
+    const product = getProductDataById(product_id);
+    const product_decrypted = {
+        description: decrypt(product.description),
+        price: decrypt(product.price),
+        notes: decrypt(product.notes),
+        name: decrypt(product.name),
+        image: decrypt(product.image),
+        system_price: system_price
+    };
+    
+    res.render("create_order", {product: product_decrypted, message:req.query.message?req.query.message : ""});
+});
+
+// app.post('/executeCreateOrder', async (req, res) => {
+//     if (!req.session.username) return res.redirect("/login");
+//     const captcha = await checkCaptcha(req);
+//     if (!captcha) return res.redirect("/createOrder?message=Incorrect or expired captcha");
+//     const { amount, product_id }
+// })
 
 
 app.post('/updateAccount', upload.single('pfp'), (req, res) => {
@@ -1617,7 +1683,6 @@ app.post('/updateAccount', upload.single('pfp'), (req, res) => {
         const encryptedAbout = encrypt(about);
         const encryptedPublicKey = encrypt(public_key);
         const encryptedUsername = encrypt(username);
-        console.log(req.file);
         let newpfp;
         if (req.file) {
             // Convert uploaded file buffer to Base64
@@ -1627,7 +1692,6 @@ app.post('/updateAccount', upload.single('pfp'), (req, res) => {
         }
     
         //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
-        console.log(global, encryptedPublicKey)
     
         const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
         stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
@@ -1748,16 +1812,13 @@ app.get("/marketplace", (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
-    console.log("doing marketplace")
     let products = []
     const acceptableParameters = {aura: ["asc, desc"]}
     const sort_method = req.query.sort_method ? req.query.sort_method : "default";
     const sort_parameter = req.query.sort_parameter ? req.query.sort_parameter : "default";
 
-    console.log("done declaring")
     switch (sort_method){
         case "default":
-            console.log("Hey doing default")
             products = getProductsByBuys();
             break;
         case "name":
@@ -1765,7 +1826,6 @@ app.get("/marketplace", (req, res) => {
             for (let name of product_names) {
                 products.push(name_product_dict[name]);
             }
-            console.log("PRODUCTS: "+products)
             break;
         case "tags_all":
             if (!isItReal(sort_parameter)) return res.redirect("/marketplace")
@@ -1773,7 +1833,6 @@ app.get("/marketplace", (req, res) => {
             break;
         case "tags_or":
             if (!isItReal(sort_parameter)) return res.redirect("/marketplace");
-            console.log(sort_parameter)
             products = searchTagsOR(sort_parameter);
             break;
         default:
@@ -1813,14 +1872,12 @@ app.get("/marketplace", (req, res) => {
 app.get("/deleteConversation", (req, res) => {
     if (req.session.username) {
         const receiver_id = req.query.user_id;
-        console.log("here", req.session.user_id, receiver_id)
         let users;
         if (receiver_id > req.session.user_id) {
             users = `${receiver_id},${req.session.user_id}`;
         } else {
             users = `${req.session.user_id},${receiver_id}`;
         }
-        console.log(users);
         deleteConversation(users);
         res.redirect("/directMessagesMain");
     } else {
@@ -1850,6 +1907,8 @@ app.post("/executeRoomLogin", async (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
+    const captcha = await checkCaptcha(req);
+    if (!captcha) res.redirect("/chat_main?message=Incorrect or expired captcha")
 
     if (!req.session.authToken || !validAuthTokens.includes(req.session.authToken)) {
         return res.redirect("/login");
@@ -1881,10 +1940,15 @@ app.post("/executeRoomLogin", async (req, res) => {
     }
 });
 
+app.get("/save_private_key_to_localstorage", (req, res) => {
+    res.render("save_private_key");
+});
+
 app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
     if (!req.session.username) {
+        const captcha = await checkCaptcha(req)
+        if (!captcha) return res.redirect("/createAccount?message=incorrect or expired captcha");
         const { username, password, password1, email, tags, about, public_key, global_bool } = req.body;
-        console.log(username, password, password1, email, tags, about, public_key)
         if (username == "" || password == "" || public_key == "") {
             res.redirect("/createAccount?message=You missed a piece");
             return;
@@ -1910,7 +1974,6 @@ app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
                 newpfp = base64String;
             });
         }
-        console.log("new PFP: " + newpfp);
         await createUser(username, password, 0, about, public_key, global_bool, newpfp, tags, email);
         res.redirect("/login?success=please log in with your new account!!");
     } else {
@@ -2096,6 +2159,8 @@ app.post("/executeCreateRoom", async (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
+    const captcha = await checkCaptcha(req);
+    if(!captcha) res.redirect("/createRoom?message=Incorrect or expired captcha")
 
     const room_title = req.body.room_title || res.redirect("/createRoom");
     const password = req.body.password || "";
@@ -2116,6 +2181,8 @@ app.post("/executeLogin", async (req, res) => {
     if (!request_username || !request_password) {
         return res.redirect("/login?message=Please+provide+username+and+password");
     }
+    const captcha = await checkCaptcha(req)
+    if (!captcha) return res.redirect("/login?message=Incorrect or expired captcha")
 
     try {
         const users_database = await getUsers();
@@ -2192,20 +2259,17 @@ app.post("/executeDeleteRoom", (req, res) => {
 
 
 io.on('connection', (socket) => {
-    console.log('New client connected');
+    logger.debug('New client connected');
     const session = socket.handshake.session; // Access session data
 
     socket.on('establishment', async (data) => {
         try {
-            console.log(data);
             const sender_id = data.sender_id;
             if (session.username && (session.user_id == sender_id)) {
-                console.log("Establishment successful");
                 const receiver_id = data.receiver_id;
                 const receiver_username = decrypt(getUsernameById(receiver_id));
 
                 const users = receiver_id > sender_id ? `${receiver_id},${sender_id}` : `${sender_id},${receiver_id}`;
-                console.log("users: " + users);
 
                 const messages = await getMessages(users);
                 const renderMessages = messages.map((message) => ({
@@ -2216,7 +2280,6 @@ io.on('connection', (socket) => {
                     signature: decrypt(message.signature),
                 }));
 
-                console.log(JSON.stringify(renderMessages));
                 socket.join(users);
                 session.room = users;
                 socket.emit("establishment", { receiver_username, messages: renderMessages });
@@ -2224,13 +2287,12 @@ io.on('connection', (socket) => {
                 socket.emit("message", { message: "Authentication failed. Please re-login." });
             }
         } catch (error) {
-            console.log("Error in establishment event:", error);
+            logger.error("Error in establishment event:", error);
         }
     });
 
     socket.on('sendMessage', (data = { sender_id: "" }) => {
         try {
-            console.log("Received sendMessage");
             if (session.username && session.user_id == data.sender_id) {
                 const { sender_content, receiver_content, receiver_id, sender_id, signature, save } = data;
 
@@ -2243,7 +2305,7 @@ io.on('connection', (socket) => {
                 io.to(users).emit("newMessage", { receiver_content, signature, sender_id, save });
             }
         } catch (error) {
-            console.log("Error in sendMessage event:", error);
+            logger.error("Error in sendMessage event:", error);
         }
     });
 
@@ -2261,7 +2323,7 @@ io.on('connection', (socket) => {
                 io.to(roomData.title).emit("requestKeyForward", { public_key, requestToken });
             }
         } catch (error) {
-            console.log("Error in requestKey event:", error);
+            logger.error("Error in requestKey event:", error);
         }
     });
 
@@ -2274,16 +2336,13 @@ io.on('connection', (socket) => {
             io.to(`${requester_id}:${data.room_id}`).emit("requestKeyResponseForward", { encryptedKey: data.encryptedKey });
             socket.leave(`${requester_id}:${data.room_id}`);
         } catch (error) {
-            console.log("Error in requestKeyResponse event:", error);
+            logger.error("Error in requestKeyResponse event:", error);
         }
     });
 
     socket.on("establishmentRoom", (data) => {
-        console.log("establishment room!!!!1")
-        console.log(session.username, session.user_id, data.sender_id)
         try {
             if (session.username && session.user_id == data.sender_id) {
-                console.log("we lethim in");
                 const { room_title, room_id } = data;
 
                 if (decrypt(getRoomTitleById(room_id)) !== room_title) return;
@@ -2305,15 +2364,13 @@ io.on('connection', (socket) => {
                 socket.emit("establishmentRoom", { messages: renderMessages });
             }
         } catch (error) {
-            console.log("Error in establishmentRoom event:", error);
+            logger.error("Error in establishmentRoom event:", error);
         }
     });
 
     socket.on("newMessageRoom", (data) => {
-        console.log("got new message room")
         try {
             if (session.username && session.user_id == data.sender_id) {
-                console.log("let him in");
                 const { content, room_id, room_title } = data;
 
                 if (decrypt(getRoomTitleById(room_id)) != room_title) return;
@@ -2328,24 +2385,23 @@ io.on('connection', (socket) => {
                 io.to(room_title).emit("newMessage", { content, sender_id: data.sender_id, sender_username: getUsernameById(session.user_id) });
             }
         } catch (error) {
-            console.log("Error in newMessageRoom event:", error);
+            logger.error("Error in newMessageRoom event:", error);
         }
     });
 
     socket.on('message', (msg) => {
         try {
-            console.log(`Received message: ${msg}`);
             io.emit('message', msg);
         } catch (error) {
-            console.log("Error in message event:", error);
+            logger.error("Error in message event:", error);
         }
     });
 
     socket.on('disconnect', () => {
         try {
-            console.log('Client disconnected');
+            logger.info('Client disconnected');
         } catch (error) {
-            console.log("Error during disconnect:", error);
+            logger.error("Error during disconnect:", error);
         }
     });
 });
@@ -2358,6 +2414,14 @@ admin : admin
 
 
 -----BEGIN RSA PRIVATE KEY----- MIICWwIBAAKBgQCm/jQJloYOrbrwJ8JHtNw6lVlNEctXnYeywoCA0fSBHK3tzrz2 L5pNLCexNChVVc4lK3vJqhU25wepmbGS9UGlK9MTWrc6o16nHC9xCx3Z2i9p5ZFf 6ci/x4G0ZJ2758J6r5zsG2cYLfFFszHtjaYhGUq+Nj+sUv3ixZOdtwWTZQIDAQAB AoGAbc0vwi4rL3OkO0ypPiT5ubuB4F8W6SE3nJ6viASFVG/bHUaWkPlz59Jktuuo qZOl3GLfHharpFH8g9P/IrYI1tXo/BWA2lct6qOBoD4JxfBtTdrH5kMRYDo6Ys3i qskvVBqUvyKIQ54EwYej6pCemhABbE164TFzXgUwNlVTPQECQQDYwkQ3P57moBCl 47Ri3cV7FPRppa9jZsMUzobuc+EV+0aDbmOe8nhliE34aC0lEYNhYKgyP1sQFcJd c9avSmhRAkEAxTmG+pzkwtmejo5xBW/wSTjWoI2Ow4DuTMnFKeYgO3zXY9qLS2No KeJUHkaQ7TgjTJRYy+bBlm5FwlDNuOZI1QJAXDiS41qrFX4mdx3hAmtOeOZacpRu gYEYIMMZv1wH+N02i/asZdTNio0qdzSDeJDx77068l3oNXi8gBwny96BcQJAKFsH FYy4+m3RFdZrpfMrta/dquiMR9C/8hJvN42RFtsKr7HuQrTKgZeAItnJmeCcyHSq Xr6O6hsSRxqFncnxKQJAJUBLM9pP3OUm+jfpaME65m+g8KFf4QrMputs6zBE29BO XGrCwNP/yR4I+TAKZUS0b1a2iW5XSd/bySbqrwyaHA== -----END RSA PRIVATE KEY-----
+
+
+user1 : user1
+-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHqej2t14/86Ph8Ej6lHAgNPazpj J8Y81Nua1dW9EojONN7jSHcUfnChcQlrl1xRcWUZXq9SMc69XHAV+qgj5A78KdEn rWqTx4Dq3olqowJROMgxYwis8gnyiAx0wJS4PWaE/qS21XjrcS/e3iB/cY13q9gL OO6l3RRv7xvo0fzhAgMBAAE= -----END PUBLIC KEY-----
+
+
+
+-----BEGIN RSA PRIVATE KEY----- MIICXAIBAAKBgHqej2t14/86Ph8Ej6lHAgNPazpjJ8Y81Nua1dW9EojONN7jSHcU fnChcQlrl1xRcWUZXq9SMc69XHAV+qgj5A78KdEnrWqTx4Dq3olqowJROMgxYwis 8gnyiAx0wJS4PWaE/qS21XjrcS/e3iB/cY13q9gLOO6l3RRv7xvo0fzhAgMBAAEC gYB5IFamna9auUsSUuwjGNzZLkPLSpXI0uCmCn6/g+ViNOivYK99ykXYtvG1j43W iTFN4FDTOYuwIQjGRD/2hnXKJO9qznnr4x3CrwSu1Z5Fii/1P7UB+LrtBiQ7khmg 7okTbbfH+TSZ998o+DouT9smDVynRfVBYA8Nh/t3GNt+jQJBAL0jXBtlWkN92fa1 +YIwYYQ5BAESiAwLiObdRxC+X5EALXum/TlRqB/fC/uAq8prnu2EHDtCUkZs+TSH r4UVQfcCQQCl92FeHh1Z1r1mQmySIcv+Adg5BVn72cKdvUdMHJxSRCu0Cd6iNHeW XmDl60Gh+i0IM3GiakckyBB65ReNSoHnAkEAnD/i7qr7N7h3YU4SMxA+71meyjgB 9lltHrP86oMrNgG8kWNx3HFt/+5m2r4Arbfc0oEKRZZTm+SYt2HEiZ/3HwJBAJ7U e2M2EMLMZp+5i+vh2jZxj3sqau5CfSS2YsgtTVDRmr2HAIBdE+Fc2wDOPxaDtJr3 mJVlfkZuDI+ANSTrnBsCQHnrsnXMIhNnFraefHByrL7DxNY+r+xWbjeMLwLD4vzd YGuvIUNNz1TWg/R+VHNAhP3fAqrpF1NM2a/sut0we3w= -----END RSA PRIVATE KEY-----
 */
 
 (async () => {
@@ -2369,14 +2433,14 @@ admin : admin
         const hashedPassword = hashPassword(password);
         encryptionKey = deriveKey(hashedPassword);
 
-        console.log('Encryption key has been successfully derived.');
+        logger.info('Encryption key has been successfully derived.');
     } catch (error) {
         console.error('Error during password prompt or encryption setup:', error);
         process.exit(1); // Exit if there is an error
     }
 })().then(() => {
     // Place any code here that depends on `encryptionKey`
-    console.log('Now ready to start the server with encryption key initialized.');
+    logger.info('Now ready to start the server with encryption key initialized.');
     server.listen(PORT, async () => {
         updateUsernameToId()
         updateRoomToId();
@@ -2415,7 +2479,7 @@ admin : admin
         // console.log(result)
         // console.log(decrypt("c87c7de12925ae75891569dc8d5d516b69ba99cd2f74781943b98cf60ee318a733dde41e6661708422d7ba42b274e0bf7c4891709b5b0a9fc3db0b75383df8d963bc051b9e2eab24ceafa3c1fb0ae44a"))
         
-        console.log("Listening on port " + PORT);
+        logger.info("Listening on port " + PORT);
     });
 });
 

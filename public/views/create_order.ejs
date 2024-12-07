@@ -1,0 +1,30 @@
+<html>
+    <head>
+        <title>Place Order</title>
+    </head>
+    <body>
+        <p style="color:red"><%= message %></p>
+        <h1>Place an order for <%= product.name %></h1>
+        <% if (product.image) { %>
+            <img src="data:image/png;base64,<%= pfp %>" alt="Product Picture" class="product-pic">
+        <% } else { %>
+            <img src="https://www.incathlab.com/images/products/default_product.png" alt="Default Product Picture" class="product-pic">
+        <% } %>  
+        <h4><%= product.notes %></h4>
+        const product_decrypted = {
+            description: decrypt(product.description),
+            price: decrypt(product.price),
+            notes: decrypt(product.notes),
+            name: decrypt(product.name),
+            image: decrypt(product.image),
+            system_price: system_price
+        };
+        <h4>PRICE: <%= product.price %></h4> 
+        <h4>SYSTEM PRICE: <%= product.system_price %></h4>
+        <h4>NOTES: <%= product.notes %></h4>
+        <form action="/executeCreateOrder" method="POST">
+            <h3></h3>
+            <%- include('captcha') %>
+        </form>
+    </body>
+</html>

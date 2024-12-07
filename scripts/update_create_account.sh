@@ -1,16 +1,25 @@
 #!/bin/bash
 
-# Define paths to your files
-JS_FILE="public/scripts/generate_keypair.js"
-HTML_FILE="public/views/create_account.ejs" # Change this to the path of your HTML file
+# Define HTML file path
+HTML_FILE="public/views/create_account.ejs"
 
-# Generate the SHA-384 hash and encode it in Base64
-HASH="sha384-"$(openssl dgst -sha384 -binary "$JS_FILE" | openssl base64 -A)
+# Function to update integrity hash for a given JavaScript file
+update_integrity() {
+    local JS_FILE=$1
+    local SCRIPT_NAME=$(basename "$JS_FILE")
 
-# Escape any special characters in the hash (in case you expand this for other commands)
-HASH_ESCAPED=$(echo "$HASH" | sed -e 's/[\/&]/\\&/g')
+    # Generate the SHA-384 hash and encode it in Base64
+    HASH="sha384-"$(openssl dgst -sha384 -binary "$JS_FILE" | openssl base64 -A)
 
-# Use sed to replace the integrity attribute in the HTML file
-sed -i "s/integrity=\"[^\"]*\"/integrity=\"$HASH_ESCAPED\"/" "$HTML_FILE"
+    # Escape special characters
+    HASH_ESCAPED=$(echo "$HASH" | sed -e 's/[\/&]/\\&/g')
 
-echo "Updated integrity hash in $HTML_FILE to $HASH_ESCAPED"
+    # Use sed to replace the integrity attribute for the specific script
+    sed -i "/$SCRIPT_NAME/ s/integrity=\"[^\"]*\"/integrity=\"$HASH_ESCAPED\"/" "$HTML_FILE"
+
+    echo "Updated integrity hash for $SCRIPT_NAME in $HTML_FILE to $HASH_ESCAPED"
+}
+
+# Update both scripts
+update_integrity "public/scripts/generate_keypair.js"
+update_integrity "public/scripts/save_private_key_to_localstorage.js"

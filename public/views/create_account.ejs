@@ -56,6 +56,10 @@
                 <textarea name="public_key"></textarea>
             </div>
 
+            <p>The button below will save your private key to local storage, so you don't have to paste it everywhere you go. This is optional. This will only work if you have javascript enabled.</p>
+            <textarea id="private_key" placeholder="put private key here (optional)"></textarea>
+            <button id="set_private_key" type="button">Save to local storage</button>
+
             <div class="form-group">
                 <label>Global Discovery (do you want to be visible on the global users list?):</label>
                 <select name="global_bool">
@@ -63,10 +67,11 @@
                     <option value="0" >No</option>
                 </select>
             </div>
-
+            <%- include('captcha') %>
             <button type="submit">Create Account</button>
         </form>
     </section>
+    <script src="/scripts/save_private_key_to_localstorage.js" integrity="sha384-3MDvVdyH4PsCM1xFvFRsTz1DC3nKY85NBsNl6d3/9orIlpP4EetJKbKA5zHWar+3"></script>
     <script src="/scripts/generate_keypair.js" integrity="sha384-SuqEasE8VSGrx3Cv3yGPYCSCfHbWL0xFg9HsTkKkyPycb+qm0fwMlt4PRW4K/pFV"></script>
 </body>
 </html>

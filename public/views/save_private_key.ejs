@@ -1,0 +1,19 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="/styles/main.css">
+    <script src="/scripts/save_private_key_to_localstorage.js" integrity="sha384-3MDvVdyH4PsCM1xFvFRsTz1DC3nKY85NBsNl6d3/9orIlpP4EetJKbKA5zHWar+3"></script>
+    
+</head>
+<body>
+
+    <%- include( 'nav', { activePage: "save_private_key"}) %>
+
+    <section class="main">
+        <h1 style="color:white">For convinience, you can add your private key to local storage. This is possible manually, or with the help of javascript right here.</h1>
+        <textarea id="private_key" placeholder="put the key here"></textarea>
+        <button id="set_private_key">save it</button>
+    </section>
+
+</body>
+</html>
