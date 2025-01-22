@@ -23,7 +23,7 @@ const https = require('https');
 const Trie = require('trie-prefix-tree');
 const { v4: uuidv4 } = require('uuid');
 const { createCanvas } = require('canvas');
-const BitcoinCore = require('bitcoin-core');
+const Client = require('bitcoin-core');
 const { getTransactions } = require('./blockchain.js');
 
 
@@ -61,6 +61,8 @@ const io = new Server(server);
 // Listing valid auth tokens and request tokens
 let validAuthTokens = [];
 let requestTokens = {};
+let ordersPending = {};
+
 const captchaMap = new Map();
 // Log path
 const logPath = "app.log";
@@ -72,13 +74,13 @@ const storage = multer.memoryStorage(); // Store files in memory as Buffer
 const upload = multer({ storage: storage });
 
 
-// const client = new Client({
-//     network: 'testnet', // or 'testnet', 'regtest'
-//     username: process.env.USERNAME_BTC,
-//     password: process.env.PASSWORD_BTC,
-//     host: HOST_BTC,
-//     port: PORT_BTC
-// });
+const client = new Client({
+    network: 'testnet', // or 'testnet', 'regtest'
+    username: process.env.USERNAME_BTC,
+    password: process.env.PASSWORD_BTC,
+    host: process.env.HOST_BTC,
+    port: process.env.PORT_BTC
+});
 
 setInterval(() => {
     const now = Date.now();
@@ -274,6 +276,28 @@ function rePopulateTrieAndDict() {
     }
     //console.log(tag_names_dict)
 }
+
+/**
+ * Generate a new address
+ * @returns {string} the address
+ */
+async function generateNewAddress() {
+    try {
+        const address = await client.getNewAddress(); // Optionally pass a label and address type
+        return address;
+    } catch (error) {
+        return false;
+    }
+}
+/**
+ * Generate UUID
+ * @returns {string} makes a uuid
+ */
+function generateUUID() {
+    const timestamp = Date.now(); // Get current timestamp in milliseconds
+    const randomInt = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER); // Random large integer
+    return `${timestamp}${randomInt}`; // Combine them to form a pseudo-unique ID
+  }
 
 /**
  * Search  for all posts with any of the specified tags
@@ -551,7 +575,53 @@ function getMessages(users) {
     const stmt = db.prepare(`SELECT * FROM direct_messages WHERE users = ?`);
     return stmt.all(users);
 }
+/**
+ * Convert USD to BTC
+ * @param {int} usdAmount USD amount
+ * @returns {double} Probably a double containing the BTC amount
+ */
+async function convertUsdToBtc(usdAmount) {
+    try {
+      // Fetch the current BTC price in USD from CoinGecko
+      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+        params: {
+          ids: 'bitcoin',
+          vs_currencies: 'usd',
+        },
+      });
+  
+      const btcPriceInUsd = response.data.bitcoin.usd;
+  
+      if (!btcPriceInUsd) {
+        throw new Error('Failed to retrieve BTC price');
+      }
+  
+      // Calculate the BTC amount
+      const btcAmount = usdAmount / btcPriceInUsd;
+  
+      return btcAmount;
+    } catch (error) {
+      console.error('Error converting USD to BTC:', error.message);
+      throw error;
+    }
+  }
 
+/**
+ * 
+ * @param {string} address The address which you are checking
+ * @returns {int} The amount that has been recieved by said address
+ */
+  async function getTotalReceivedByAddress(address) {
+    try {
+      // Get the total amount received by the address
+      const totalReceived = await client.getReceivedByAddress(address);
+      logger.info(`Address ${address} has received a total of ${totalReceived} BTC`);
+      return totalReceived;
+    } catch (error) {
+      logger.error(`Error fetching received amount for address ${address}:`, error.message);
+      throw error;
+    }
+  }
 /**
  * Update the account for a vendor.
  * @param {int} vendor_id The id of the vendor to update
@@ -696,13 +766,15 @@ function getMessagesRoom(roomId) {
  * @param {int} amount The amount of products bought
  * @returns Result of the SQL query
  */
-function createOrder(buyer_id, product_id, amount) {
-    if (amount <= 0 || buyer_id <= 0 || amount <= 0) return -1;
-    const stmt = db.prepare(`INSERT INTO orders (buyer_id, amount, product_id) VALUES (?, ?, ?)`);
-    const encrypted_product_id = encrypt(product_id);
-    const encrypted_buyer_id = encrypt(buyer_id);
-    const encrypted_amount = encrypt(amount);
-    const result = stmt.run(encrypted_buyer_id, encrypted_amount, encrypted_product_id);
+function createOrder(product_id, user_id, amount, vendor_id, estimated_arrival) {
+    if (amount <= 0 || user_id <= 0 || amount <= 0 || vendor_id <= 0) return -1;
+    const stmt = db.prepare(`INSERT INTO orders (product_id, user_id, amount, vendor_id, estimated_arrival, shipment_proof, recieved) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const encrypted_product_id = encrypt(product_id.toString());
+    const encrypted_user_id = encrypt(user_id.toString());
+    const encrypted_amount = encrypt(amount.toString());
+    const encrypted_vendor_id = encrypt(vendor_id.toString());
+    const encrypted_estimated_arrival = encrypt(estimated_arrival);
+    const result = stmt.run(encrypted_user_id, encrypted_user_id, encrypted_amount, encrypted_vendor_id, encrypted_estimated_arrival, "", false);
     return result;
 }
 
@@ -1646,6 +1718,61 @@ app.get("/account", (req, res) => {
         res.redirect("/login");
     }
 })
+
+
+app.get("/placeOrder", (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const { product_id, amount } = req.query;
+    for (let i=0; i<orders.length; i++) {
+        if (orders[i].session_id == req.session.id) return res.redirect("/error?message=Um you already have a pending order. Wait like 5 mins for it to clear out and then try again i guess");
+    }
+    if (!(isItReal(product_id) && isItReal(amount))) {
+        const address = generateNewAddress();
+        const product = getProductDataById(product_id);
+        const system_price = product.system_price;
+        const expected_price_USD = system_price * amount;
+        const expected_price_BTC = convertUsdToBtc(expected_price_USD);
+        const pending_order_uuid = generateUUID(); // We use a dict because 1) we can check the existence of a uuid in o(1) time, and 2) can reference pending orders and keep track of them from outside of the server
+        ordersPending[pending_order_uuid] = {time: Date.now(), address: address, session_id: req.session.id, product_id: product_id, amount: amount, expected: expected_price_BTC};
+        res.redirect("/orderPending?uuid="+pending_order_uuid);
+    } 
+});
+
+app.get("/orderPending", async (req, res) => {
+    if (!req.session) res.redirect("/login");
+    const { uuid } = req.query;
+    if (!isItReal(uuid)) return res.redirect("/error?message=this shouldnt happen, unless you did something manually or the server broke. try again pls or lmk!");
+    const order_in_question = ordersPending[uuid];
+    if (order_in_question && order_in_question.session_id == req.session.id) { // Check if such order exists, and then if it belongs to the guy in question
+        const amount_recieved = await getTotalReceivedByAddress(order_in_question.address);
+        if (amount_recieved >= order_in_question.expected) {
+            const product = getProductDataById(order_in_question.product_id);
+            // now, get the data abt the product, create the product, and then make a 
+            // product_id, user_id, amount, vendor_id, estimated_arrival
+            createOrder(product.id, order_in_question.user_id, order_in_question.amount, product.vendor_id, "1/1/1975");
+            return res.redirect("/orderComplete");
+        } else {
+            return res.render("order_pending", {address, uuid, amount_recieved, amount_expected: expected});
+        }
+    } else {
+        // Order doesnt exist. We say so
+        const problem_order_uuid = await generateUUID();
+        logger.warn("Hey! An order that didnt exist (timed out?) was attempted to be accessed. The problem order uuid was "+problem_payment_uuid+" .")
+        return res.redirect("/error?message=hm. this order doesnt seem to exist. It is possible that the order timed out (the payment didn't go through in time). Please try again. <br> IF YOU PAYED MONEY ALREADY AND IT DID THIS PROBLEM: your id is "+problem_payment_uuid+" . Save this.  Also save the BTC address to which you paid the money. Contact me with it and we will work something out.")
+    }
+});
+
+app.get("/orderComplete", (req, res) => {
+    const { uuid } = req.query;
+    if (!req.session) res.redirect("/login");
+    const order_in_question = ordersPending[uuid];
+    if (order_in_question && order_in_question.session_id == req.session.id) {
+        delete ordersPending[uuid];
+        return res.render("order_complete");
+    }
+    res.render("order_incomplete");
+});
+
 
 app.get('/createOrder', (req, res) => {
     if (!req.session.username) return res.redirect("/login");

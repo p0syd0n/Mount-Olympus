@@ -1,0 +1,17 @@
+<html>
+    <head>
+        <title>Order Pending</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/marketplace.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'marketplace' }) %>
+        <section id="marketplace">
+            <h1>ORDER <%= uuid %></h1>
+            <p class="message">BTC recieved for order <%= uuid %> :  <%= amount_recieved %> / <%= amount_expected %></p>
+            <p class="message">Funds should be sent to <%= address %></p>
+            <p class="message">As a reminder, it is not too late to turn back. If you leave the order untouched for 10 minutes, it will cease to exist.</p>
+            <p class="message">Continue to reload this page for updated information. Once the proper amount of money has been sent to the address, you will be shown the next step.</p>
+        </section>
+    </body>
+</html>
