@@ -1221,6 +1221,9 @@ io.use(expressSocketIO(sessionMiddleware, {
 
 // Routes
 
+
+// routes:info
+
 app.post("/test", (req, res) => {
     logger.info(req.body);
 });
@@ -1238,14 +1241,411 @@ app.post('/csp-violation-report', (req, res) => {
     res.sendStatus(204); // Respond with no content status
 });
 
-app.get("/createPost", (req, res) => {
+
+
+app.get("/generateKeypair", (req, res) => {
+    res.render("generate_keypair");
+});
+
+
+
+
+app.get("/room_help", (req, res) => {
+    res.render("room_help.ejs");
+});
+
+
+
+
+app.get("/info", (req, res) => {
+    res.render("info", {message: req.query.message ? req.query.message : "No info"})
+})
+
+app.get("/error", (req, res) => {
+    res.render("error", {message: req.query.message ? req.query.message : "No error message"})
+})
+
+
+
+// app.post('/executeCreateOrder', async (req, res) => {
+//     if (!req.session.username) return res.redirect("/login");
+//     const captcha = await checkCaptcha(req);
+//     if (!captcha) return res.redirect("/createOrder?message=Incorrect or expired captcha");
+//     const { amount, product_id }
+// })
+
+
+
+
+app.get("/save_private_key_to_localstorage", (req, res) => {
+    res.render("save_private_key");
+});
+
+
+
+
+app.get("/globalUsers",async  (req, res) => {
+ if (req.session.username) {
+    const users_ = await getUsers();
+    let renderUsers = [];
+    for (let user of users_) {
+        if (user.global) {
+            const username = decrypt(user.username);
+            const aura = user.aura
+            const tags = isItReal(user.tags) ? decrypt(user.tags) : "";
+            const id = user.id
+            renderUsers.push({username, aura, tags, id});
+        }
+    }
+    res.render("global_users_list", {users: renderUsers});
+    return;
+ }
+ res.redirect("/login");
+ 
+})
+
+
+
+
+
+app.get("/chathelp", (req, res) => {
+    res.render("chat_help.ejs");
+});
+
+
+app.get("/security", (req, res) => {
+    res.render("security.ejs");
+});
+// routes:rooms
+
+app.get("/join_private_room", (req, res) => {
     if (req.session.username) {
-        const message = req.query.message || "";
-        res.render("create_post.ejs", { message });
+        res.render("join_private_room.ejs");
     } else {
         res.redirect("/login");
     }
 });
+
+
+// Chat room selection
+app.get("/chat_main", async (req, res) => {
+    if (!req.session.username) {
+        res.redirect("/login");
+        return;
+    }
+
+    try {
+        const rooms = await getRooms();
+        const roomsToRender = rooms
+            .filter(room => room.password === "")
+            .map(room => ({ title: decrypt(room.title), id: room.id }));
+        
+        res.render("chat_main.ejs", { rooms: roomsToRender, message: req.query.message || "" });
+    } catch (error) {
+        console.error("Error retrieving chat rooms:", error);
+        res.redirect("/chat_main?message=Error retrieving chat rooms");
+    }
+});
+
+// Chat room access handling
+app.get("/chatroom", async (req, res) => {
+    if (!req.session.username) {
+        res.redirect("/login");
+        return;
+    }
+    
+    const room_id = req.query.room_id || await getRoomData(req.query.room_title)?.id;
+    
+    if (!room_id) {
+        return res.redirect("/chat_main");
+    }
+
+    try {
+        const roomData = getRoomData(room_id);
+        const room_title = decrypt(roomData.title);
+
+        if (roomData.password) {
+            if (req.session.authedRooms.includes(room_title)) {
+                const public_key = decrypt(getPublicKey(req.session.user_id));
+                res.render("chatroom.ejs", { room_id, room_title, sender_public_key: public_key, sender_id: req.session.user_id });
+            } else {
+                res.redirect(`/roomLogin?room_id=${room_id}&room_title=${room_title}`);
+            }
+        } else {
+            res.render("chatroom.ejs", { room_id, room_title, sender_id: req.session.user_id, sender_public_key: decrypt(getPublicKey(req.session.user_id)) });
+        }
+    } catch (error) {
+        console.error("Error accessing chat room:", error);
+        res.redirect("/chat_main?message=Error accessing chat room");
+    }
+});
+
+
+
+app.get("/middlemanRoom", (req, res) => {
+    res.redirect(req.query.destination || "/login");
+});
+
+
+// Password check for private chat rooms
+app.get("/roomLogin", (req, res) => {
+    if (req.session.username) {
+        const room_id = req.query.room_id || res.redirect("/chat_main");
+        const room_title = req.query.room_title || res.redirect("/chat_main");
+
+        const authToken = crypto.randomBytes(32).toString('hex');
+        req.session.authToken = authToken;
+        validAuthTokens.push(authToken);
+
+        res.render("chatroom_password.ejs", { room_id, room_title });
+    } else {
+        res.redirect("/login");
+    }
+});
+
+
+app.get("/deleteRoom", (req, res) => {
+    if (req.session.admin) {
+        res.render("delete_room");
+    } else {
+        res.redirect("/");
+    }
+});
+
+app.post("/executeDeleteRoom", (req, res) => {
+    if (!req.session.admin) {
+        return res.redirect("/");
+    }
+
+    const room_title = req.body.room_title || "";
+    const room_id = room_title ? roomNameToId[room_title] : req.body.room_id || res.redirect("/chat_main");
+
+    if (!room_id) {
+        return res.redirect("/chat_main?message=Invalid room ID");
+    }
+
+    try {
+        deleteRoom(room_id);
+        res.redirect("/chat_main?message=Deleted successfully");
+    } catch (error) {
+        console.error("Error deleting room:", error);
+        res.redirect("/chat_main?message=Error deleting room");
+    }
+});
+
+
+// Execute room login with password
+app.post("/executeRoomLogin", async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    const captcha = await checkCaptcha(req);
+    if (!captcha) res.redirect("/chat_main?message=Incorrect or expired captcha")
+
+    if (!req.session.authToken || !validAuthTokens.includes(req.session.authToken)) {
+        return res.redirect("/login");
+    }
+
+    req.session.authToken = null;
+
+    const room_title = req.body.room_title || res.redirect("/chat_main");
+    const room_id = req.body.room_id || res.redirect("/chat_main");
+    const request_password = req.body.password;
+
+    if (!request_password) {
+        return res.redirect(`/middlemanRoom?destination=${encodeURIComponent("/roomLogin")}`);
+    }
+
+    try {
+        const roomData = getRoomData(room_id);
+        const hashedRequestPassword = await hashPassword(request_password);
+
+        if (decrypt(roomData.password) === hashedRequestPassword) {
+            req.session.authedRooms.push(room_title);
+            res.redirect(`/middlemanRoom?destination=${encodeURIComponent(`/chatroom?room_id=${room_id}`)}`);
+        } else {
+            res.redirect(req.get('Referer'));
+        }
+    } catch (error) {
+        console.error("Error executing room login:", error);
+        res.redirect("/chat_main?message=Error logging in to room");
+    }
+});
+
+app.post("/executeCreateRoom", async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    const captcha = await checkCaptcha(req);
+    if(!captcha) res.redirect("/createRoom?message=Incorrect or expired captcha")
+
+    const room_title = req.body.room_title || res.redirect("/createRoom");
+    const password = req.body.password || "";
+    const locked = req.body.locked ? 1 : 0;
+
+    try {
+        const id = await createRoom(room_title, password, locked);
+        res.redirect("/chat_main?message=success: your room id is " + id);
+    } catch (error) {
+        console.error("Error creating room:", error);
+        res.redirect("/createRoom?message=Error creating room");
+    }
+});
+
+app.get("/createRoom", (req, res) => {
+    if (req.session.username) {
+        res.render("create_room.ejs");
+    } else {
+        res.redirect("/login");
+    }
+});
+
+
+// routes:dms
+
+
+app.get("/deleteConversation", (req, res) => {
+    if (req.session.username) {
+        const receiver_id = req.query.user_id;
+        let users;
+        if (receiver_id > req.session.user_id) {
+            users = `${receiver_id},${req.session.user_id}`;
+        } else {
+            users = `${req.session.user_id},${receiver_id}`;
+        }
+        deleteConversation(users);
+        res.redirect("/directMessagesMain");
+    } else {
+        res.redirect("/login");
+    }
+});
+
+
+app.get("/directMessagesMain", async (req, res) => {
+    if (req.session.username) {
+
+        const users = await getUsersForDMs(req.session.user_id);
+        res.render("direct_messages_main", { user_id: req.session.user_id, users});
+    } else {
+        res.redirect("/login");
+    }
+});
+
+
+app.get("/goToDirectMessages", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+
+    const receiver_user_id = req.query.username ? usernameToId[req.query.username] : req.query.user_id || res.redirect("/directMessagesMain");
+    
+    if (!receiver_user_id) {
+        return res.redirect("/directMessagesMain");
+    }
+    
+    res.redirect("/directMessagesChat?user_id=" + receiver_user_id);
+});
+
+app.get("/directMessagesChat", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+
+    const receiver_id = req.query.user_id;
+
+    if (!receiver_id) {
+        return res.redirect("/directMessagesMain");
+    }
+
+    const sender_id = req.session.user_id;
+    const sender_username = getUsernameById(sender_id);
+    const receiver_public_key = getPublicKey(receiver_id);
+    const sender_public_key = getPublicKey(sender_id);
+
+    const decrypted_receiver_public_key = receiver_public_key !== -1 ? decrypt(receiver_public_key) : "This user does not exist, or does not have a public key associated with their account. Try again.";
+    const decrypted_sender_public_key = sender_public_key !== -1 ? decrypt(sender_public_key) : "You don't exist or don't have a public key associated with your account. Try again.";
+
+    const data = {
+        receiver_id,
+        sender_id,
+        sender_username,
+        receiver_public_key: decrypted_receiver_public_key,
+        sender_public_key: decrypted_sender_public_key
+    };
+    
+    res.render("direct_messages_chat", data);
+});
+
+
+
+// routes:comments
+app.post("/postComment", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+
+    const { content = "", post_id = "" } = req.body;
+
+    if (!content || !post_id) {
+        return res.redirect(`/post?id=${post_id}&message=Error posting comment`);
+    }
+
+    try {
+        createComment(post_id, req.session.user_id, content);
+        res.redirect("/post?id=" + post_id);
+    } catch (error) {
+        console.error("Error posting comment:", error);
+        res.redirect(`/post?id=${post_id}&message=Error posting comment`);
+    }
+});
+
+// routes:login
+
+
+
+app.post("/executeLogin", async (req, res) => {
+    const { username: request_username = "", password: request_password = "" } = req.body;
+
+    if (!request_username || !request_password) {
+        return res.redirect("/login?message=Please+provide+username+and+password");
+    }
+    const captcha = await checkCaptcha(req)
+    if (!captcha) return res.redirect("/login?message=Incorrect or expired captcha")
+
+    try {
+        const users_database = await getUsers();
+        for (const user_database of users_database) {
+            const result = await bcrypt.compare(request_password, decrypt(user_database.password));
+            if (decrypt(user_database.username) === request_username && result) {
+                req.session.username = request_username;
+                req.session.admin = user_database.admin;
+                req.session.last_paid = user_database.last_paid;
+                req.session.user_id = user_database.id;
+                req.session.authedRooms = [];
+                req.session.pfp = user_database.pfp;
+                
+                if (user_database.vendor_id != null) {
+                    req.session.vendor = true;
+                    req.session.vendor_id = user_database.vendor_id;
+                } // make sure to set the actual user's vendor_id to not null when a vendorship is created. Add data to session. then, test.
+                if (req.session.admin) {
+                    logger.info(`An admin logged in - ${req.session.username}`);
+                }
+                return res.redirect(req.get("Referrer") || "/");
+            }
+        }
+        res.redirect("/login?message=incorrect");
+    } catch (error) {
+        console.error("Error during login:", error);
+        res.redirect("/login?message=Error during login");
+    }
+});
+
+app.get("/logout", (req, res) => {
+    req.session.destroy();
+    res.redirect("/login");
+});
+
 
 app.get("/", (req, res) => {
     const referer = req.get('Referer');
@@ -1272,10 +1672,69 @@ app.get("/login", (req, res) => {
     }
 });
 
-app.get("/generateKeypair", (req, res) => {
-    res.render("generate_keypair");
+// routes:forum
+
+
+app.get("/post", async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+
+    const id = req.query.id || "";
+    const comments_sort = req.query.comments_sort || "aura_desc";
+
+    if (id === "") {
+        return res.redirect("/forum?message=please+select+a+post+to+view");
+    }
+
+    try {
+        const post = getPostById(id);
+        const decryptedContent = decrypt(post.content);
+        const decryptedUsername = decrypt(getUsernameById(post.user_id));
+        const decryptedTitle = decrypt(post.title);
+        
+        const post_to_render = {
+            id: post.id,
+            content: decryptedContent,
+            username: decryptedUsername,
+            title: decryptedTitle,
+            aura: post.aura,
+            created_time: post.created_time
+        };
+        const poster_data = getUser(post.user_id);
+        const poster_pfp = poster_data.pfp;
+        const comments_for_post = await getComments(id, comments_sort);
+        const comments_to_render = await Promise.all(comments_for_post.map(async comment => {
+            const decryptedContentComment = decrypt(comment.content);
+            const user = await getUser(comment.user_id); // Get user data using user_id
+            const decryptedUsernameComment = decrypt(user.username); // Assuming username is part of user data
+            const pfp = user.pfp; // Assuming pfp is part of the user data
+        
+            return {
+                id: comment.id,
+                content: decryptedContentComment,
+                username: decryptedUsernameComment,
+                pfp: pfp, // Add pfp to the comment object
+                aura: comment.aura,
+                created_time: comment.created_at
+            };
+        }));
+
+        res.render("post.ejs", { post: post_to_render, comments: comments_to_render, pfp: poster_pfp});
+    } catch (error) {
+        console.error("Error retrieving post:", error);
+        res.redirect("/forum?message=Error retrieving post");
+    }
 });
 
+app.get("/createPost", (req, res) => {
+    if (req.session.username) {
+        const message = req.query.message || "";
+        res.render("create_post.ejs", { message });
+    } else {
+        res.redirect("/login");
+    }
+});
 
 
 app.get("/voteContent", (req, res) => {
@@ -1357,37 +1816,408 @@ app.post("/executeCreatePost", async (req, res) => {
     }
 });
 
-app.get("/join_private_room", (req, res) => {
+
+// routes:accounts
+
+
+app.get("/profile", (req, res) => {
     if (req.session.username) {
-        res.render("join_private_room.ejs");
+        const userData = getUser(req.query.user_id) ? getUser(req.query.user_id) : res.redirect("/");
+        const user_id = req.query.user_id;
+        const username = decrypt(userData.username);
+        const aura = userData.aura;
+        const created_at = userData.created_at;
+        const admin = userData.admin;
+        const public_key = decrypt(userData.public_key);
+        const about = isItReal(userData.about) ? decrypt(userData.about) : "";
+        const global = userData.global; // Will he show up on global discovery list
+        const pfp = userData.pfp;
+        const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
+        const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
+
+        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email, user_id})
     } else {
         res.redirect("/login");
     }
 });
 
-// Chat room selection
-app.get("/chat_main", async (req, res) => {
-    if (!req.session.username) {
+app.get("/account", (req, res) => {
+    if (req.session.username) {
+        const userData = getUser(req.session.user_id);
+
+        const username = decrypt(userData.username);
+        const aura = userData.aura;
+        const created_at = userData.created_at;
+        const last_paid = userData.last_paid;
+        const admin = userData.admin;
+        const public_key = decrypt(userData.public_key);
+        const about = isItReal(userData.about) ? decrypt(userData.about) : "";
+        const global = userData.global; // Will he show up on global discovery list
+        const pfp = userData.pfp;
+        const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
+        const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
+
+
+        res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp, tags, email})
+    } else {
         res.redirect("/login");
-        return;
+    }
+})
+
+
+
+app.post('/updateAccount', upload.single('pfp'), (req, res) => {
+    if (req.session.username) {
+        const { username, email, tags, about, global, user_id, public_key, pfp } = req.body;
+        if (username == "" || global == "" || public_key == "" || pfp == "") {
+            res.redirect("/account");
+        }
+        const encryptedEmail = encrypt(email);
+        const encryptedTags = encrypt(tags);
+        const encryptedAbout = encrypt(about);
+        const encryptedPublicKey = encrypt(public_key);
+        const encryptedUsername = encrypt(username);
+        let newpfp;
+        if (req.file) {
+            // Convert uploaded file buffer to Base64
+            newpfp = req.file.buffer.toString('base64');
+        } else {
+            newpfp = req.session.pfp;
+        }
+    
+        //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
+    
+        const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
+        stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
+        res.redirect("/account"); 
+    } else {
+        res.redirect("/login");
     }
 
-    try {
-        const rooms = await getRooms();
-        const roomsToRender = rooms
-            .filter(room => room.password === "")
-            .map(room => ({ title: decrypt(room.title), id: room.id }));
-        
-        res.render("chat_main.ejs", { rooms: roomsToRender, message: req.query.message || "" });
-    } catch (error) {
-        console.error("Error retrieving chat rooms:", error);
-        res.redirect("/chat_main?message=Error retrieving chat rooms");
+});
+
+
+app.get("/createAccount", (req, res) => {
+    if (!req.session.username) {
+        res.render("create_account");
+    } else {
+        res.redirect("/login?message=youre already logged in. If you see this, something broke. Contact me.");
+    }
+})
+
+
+app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
+    if (!req.session.username) {
+        const captcha = await checkCaptcha(req)
+        if (!captcha) return res.redirect("/createAccount?message=incorrect or expired captcha");
+        const { username, password, password1, email, tags, about, public_key, global_bool } = req.body;
+        if (username == "" || password == "" || public_key == "") {
+            res.redirect("/createAccount?message=You missed a piece");
+            return;
+        }
+        if (password != password1) {
+            res.redirect("/createAccount?message=Your passwords don't match");
+            return;
+        }
+
+        let newpfp;
+        if (req.file) {
+            // Convert uploaded file buffer to Base64
+            newpfp = req.file.buffer.toString('base64');
+        } else {
+            fs.readFile("public/images/image.png", (err, data) => {
+                if (err) {
+                    console.error('Error reading the file:', err);
+                    return;
+                }
+
+                // Convert to Base64
+                const base64String = data.toString('base64');
+                newpfp = base64String;
+            });
+        }
+        await createUser(username, password, 0, about, public_key, global_bool, newpfp, tags, email);
+        res.redirect("/login?success=please log in with your new account!!");
+    } else {
+        res.redirect("/")
     }
 });
 
-app.get("/room_help", (req, res) => {
-    res.render("room_help.ejs");
+
+
+// routes:market
+
+
+app.get("/marketplace", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    let products = []
+    const acceptableParameters = {aura: ["asc, desc"]}
+    const sort_method = req.query.sort_method ? req.query.sort_method : "default";
+    const sort_parameter = req.query.sort_parameter ? req.query.sort_parameter : "default";
+
+    switch (sort_method){
+        case "default":
+            products = getProductsByBuys();
+            break;
+        case "name":
+            let product_names = product_names_tree.getPrefix(sort_parameter)
+            for (let name of product_names) {
+                products.push(name_product_dict[name]);
+            }
+            break;
+        case "tags_all":
+            if (!isItReal(sort_parameter)) return res.redirect("/marketplace")
+            products = searchTagsAND(sort_parameter);
+            break;
+        case "tags_or":
+            if (!isItReal(sort_parameter)) return res.redirect("/marketplace");
+            products = searchTagsOR(sort_parameter);
+            break;
+        default:
+            return res.redirect("/marketplace");
+    }
+
+    let renderProducts = [];
+    for (let product of products) {
+        const decryptedName = decrypt(product.name);
+        const decryptedPrice = decrypt(product.price);
+        const buys = product.buys;
+        const decryptedTags = decrypt(product.tags);
+        const system_payments = product.system_payments;
+        const decryptedImage = decrypt(product.image);
+        const productData = {
+            name: decryptedName,
+            price: decryptedPrice,
+            buys: buys,
+            tags: decryptedTags,
+            system_payments: system_payments,
+            image: decryptedImage,
+            id: product.id
+        }
+        renderProducts.push(productData);
+    }
+
+    res.render("marketplace", {
+        products: renderProducts,
+        message: req.query.message || "",
+        message_success: req.query.message_success || "",
+        sort_method: sort_method,
+        sort_parameter: sort_parameter
+    });
 });
+
+
+app.get("/vendorSettings", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const vendor_id = req.session.vendor_id;
+    const vendorData = getVendorData(vendor_id);
+    const vendor_name = isItReal(vendorData.vendor_name) ? decrypt(vendorData.vendor_name) : res.redirect("/error?message=An error has occured with your vendorship. Please contact an administrator.");
+    const email = isItReal(vendorData.email) ? decrypt(vendorData.email) : "";
+    const about = isItReal(vendorData.about) ? decrypt(vendorData.about) : "";
+    const tags = isItReal(vendorData.tags) ? decrypt(vendorData.tags) : "";
+    const created_at = vendorData.created_at;
+
+    return res.render("vendor_settings", {vendor_name, email, about, tags, created_at});
+});
+
+app.post("/updateVendorSettings", (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login");
+    }
+    if (!req.session.vendor) {
+        return res.redirect("/vendorship");
+    }
+    const { vendor_name, email, about, tags } = req.body;
+    updateVendorSettings(req.session.vendor_id, vendor_name, email, about, tags);
+    res.redirect("/vendorSettings");
+})
+
+app.get("/vendor", async (req, res) => {
+    if (!req.session.username) {
+        return res.redirect("/login")
+    }
+    let vendor_id;
+    if (req.query.vendor_id) {
+        vendor_id = req.query.vendor_id;
+    } else {
+        return res.redirect("/");
+    }
+    const vendorInfo = getVendorData(vendor_id);
+    const decryptedAbout = decrypt(vendorInfo.about);
+    const decryptedEmail = decrypt(vendorInfo.email);
+    const decryptedTags = decrypt(vendorInfo.tags);
+    const decryptedName = decrypt(vendorInfo.vendor_name);
+    const created_at = vendorInfo.created_at;
+    const user_id = vendorInfo.user_id;
+    const userAura = await getAuraById(user_id);
+    const renderVendor = {
+        name: decryptedName,
+        about: decryptedAbout,
+        email: decryptedEmail,
+        tags: decryptedTags,
+        created_at: created_at,
+        user_id: user_id,
+        aura: userAura
+    }
+    const products = getProducts(vendor_id);
+    let renderProducts = [];
+    for (let product of products) {
+        const decryptedName = decrypt(product.name);
+        const decryptedTags = decrypt(product.tags);
+        const decryptedImage = product.image ? decrypt(product.image) : "";
+        const decryptedPrice = decrypt(product.price);
+        const decryptedBuys = product.buys != "0" && product.buys != 0 ? decrypt(product.buys) : "1";
+        const productData = {
+            name: decryptedName,
+            tags: decryptedTags,
+            id: product.id,
+            image: decryptedImage,
+            price: decryptedPrice,
+            buys: decryptedBuys
+        }
+        renderProducts.push(productData);
+    }
+    
+    res.render("vendor_info", {renderVendor, renderProducts})
+});
+
+
+
+app.post('/updateProduct', upload.single('image'), (req, res) => {
+    if (req.session.username) {
+        // Get form data
+        const { name, description, price, system_price, system_payments, notes, address, tags, product_id } = req.body;
+
+        // Validation checks: Make sure required fields are not empty
+        if (!isItReal(name) || !isItReal(description) || !isItReal(price) || !isItReal(tags)) {
+            return res.status(400).send('Required fields (name, description, price, tags) are missing.');
+        }
+
+        // Ensure system_price is a valid number if provided
+        if (system_price && isNaN(system_price)) {
+            return res.status(400).send('System price must be a valid number.');
+        }
+
+        // Encrypt the data from the form
+        const encryptedDescription = encrypt(description);
+        const encryptedPrice = encrypt(price);
+        const encryptedName = encrypt(name);
+        const encryptedTags = encrypt(tags);
+        const encryptedNotes = encrypt(notes);
+        const encryptedAddress = encrypt(address);
+        const encryptedSystemPrice = system_price ? encrypt(system_price) : null;
+        const encryptedSystemPayments = system_payments ? 1 : 0;
+
+        // Handle image data (use uploaded image if available, otherwise retain the old image)
+        const encryptedImage = req.file ? req.file.buffer.toString('base64') : null;
+
+        // Prepare the update query
+        const stmt = db.prepare(`
+            UPDATE catalogue SET
+                name = ?, description = ?, price = ?, system_price = ?, system_payments = ?, 
+                notes = ?, address = ?, tags = ?, image = ?
+            WHERE id = ?
+        `);
+
+        // Run the query and check for errors
+        try {
+            stmt.run(
+                encryptedName, encryptedDescription, encryptedPrice, encryptedSystemPrice, encryptedSystemPayments,
+                encryptedNotes, encryptedAddress, encryptedTags, encryptedImage, product_id
+            );
+            
+            // After successfully running the query, redirect to the updated product page
+            res.redirect(`/product?product_id=${product_id}`);
+        } catch (err) {
+            // Log and handle database errors
+            console.error('Error updating product:', err.message);
+            res.status(500).send('An error occurred while updating the product.');
+        }
+    } else {
+        // Redirect to login if no session found
+        res.redirect("/login");
+    }
+});
+
+
+app.get("/placeOrder", (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const { product_id, amount } = req.query;
+    for (let i=0; i<orders.length; i++) {
+        if (orders[i].session_id == req.session.id) return res.redirect("/error?message=Um you already have a pending order. Wait like 5 mins for it to clear out and then try again i guess");
+    }
+    if (!(isItReal(product_id) && isItReal(amount))) {
+        const address = generateNewAddress();
+        const product = getProductDataById(product_id);
+        const system_price = product.system_price;
+        const expected_price_USD = system_price * amount;
+        const expected_price_BTC = convertUsdToBtc(expected_price_USD);
+        const pending_order_uuid = generateUUID(); // We use a dict because 1) we can check the existence of a uuid in o(1) time, and 2) can reference pending orders and keep track of them from outside of the server
+        ordersPending[pending_order_uuid] = {time: Date.now(), address: address, session_id: req.session.id, product_id: product_id, amount: amount, expected: expected_price_BTC};
+        res.redirect("/orderPending?uuid="+pending_order_uuid);
+    } 
+});
+
+app.get("/orderPending", async (req, res) => {
+    if (!req.session) res.redirect("/login");
+    const { uuid } = req.query;
+    if (!isItReal(uuid)) return res.redirect("/error?message=this shouldnt happen, unless you did something manually or the server broke. try again pls or lmk!");
+    const order_in_question = ordersPending[uuid];
+    if (order_in_question && order_in_question.session_id == req.session.id) { // Check if such order exists, and then if it belongs to the guy in question
+        const amount_recieved = await getTotalReceivedByAddress(order_in_question.address);
+        if (amount_recieved >= order_in_question.expected) {
+            const product = getProductDataById(order_in_question.product_id);
+            // now, get the data abt the product, create the product, and then make a 
+            // product_id, user_id, amount, vendor_id, estimated_arrival
+            createOrder(product.id, order_in_question.user_id, order_in_question.amount, product.vendor_id, "1/1/1975");
+            return res.redirect("/orderComplete");
+        } else {
+            return res.render("order_pending", {address, uuid, amount_recieved, amount_expected: expected});
+        }
+    } else {
+        // Order doesnt exist. We say so
+        const problem_order_uuid = await generateUUID();
+        logger.warn("Hey! An order that didnt exist (timed out?) was attempted to be accessed. The problem order uuid was "+problem_payment_uuid+" .")
+        return res.redirect("/error?message=hm. this order doesnt seem to exist. It is possible that the order timed out (the payment didn't go through in time). Please try again. <br> IF YOU PAYED MONEY ALREADY AND IT DID THIS PROBLEM: your id is "+problem_payment_uuid+" . Save this.  Also save the BTC address to which you paid the money. Contact me with it and we will work something out.")
+    }
+});
+
+app.get("/orderComplete", (req, res) => {
+    const { uuid } = req.query;
+    if (!req.session) res.redirect("/login");
+    const order_in_question = ordersPending[uuid];
+    if (order_in_question && order_in_question.session_id == req.session.id) {
+        delete ordersPending[uuid];
+        return res.render("order_complete");
+    }
+    res.render("order_incomplete");
+});
+
+
+app.get('/createOrder', (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const product_id = req.query.product_id;
+    if (!product_id) return res.redirect("/error?message=Please go back and pick a valid product id");
+    const product = getProductDataById(product_id);
+    const product_decrypted = {
+        description: decrypt(product.description),
+        price: decrypt(product.price),
+        notes: decrypt(product.notes),
+        name: decrypt(product.name),
+        image: decrypt(product.image),
+        system_price: system_price
+    };
+    
+    res.render("create_order", {product: product_decrypted, message:req.query.message?req.query.message : ""});
+});
+
 
 app.get("/vendorship", (req, res) => {
     if (!req.session.username) {
@@ -1598,791 +2428,6 @@ app.get("/editProduct", (req, res) => {
         reviews: decryptedReviews
     }); 
 });
-
-
-
-
-app.get("/info", (req, res) => {
-    res.render("info", {message: req.query.message ? req.query.message : "No info"})
-})
-
-app.get("/error", (req, res) => {
-    res.render("error", {message: req.query.message ? req.query.message : "No error message"})
-})
-
-app.get("/vendorSettings", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-    if (!req.session.vendor) {
-        return res.redirect("/vendorship");
-    }
-    const vendor_id = req.session.vendor_id;
-    const vendorData = getVendorData(vendor_id);
-    const vendor_name = isItReal(vendorData.vendor_name) ? decrypt(vendorData.vendor_name) : res.redirect("/error?message=An error has occured with your vendorship. Please contact an administrator.");
-    const email = isItReal(vendorData.email) ? decrypt(vendorData.email) : "";
-    const about = isItReal(vendorData.about) ? decrypt(vendorData.about) : "";
-    const tags = isItReal(vendorData.tags) ? decrypt(vendorData.tags) : "";
-    const created_at = vendorData.created_at;
-
-    return res.render("vendor_settings", {vendor_name, email, about, tags, created_at});
-});
-
-app.post("/updateVendorSettings", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-    if (!req.session.vendor) {
-        return res.redirect("/vendorship");
-    }
-    const { vendor_name, email, about, tags } = req.body;
-    updateVendorSettings(req.session.vendor_id, vendor_name, email, about, tags);
-    res.redirect("/vendorSettings");
-})
-
-
-
-// Chat room access handling
-app.get("/chatroom", async (req, res) => {
-    if (!req.session.username) {
-        res.redirect("/login");
-        return;
-    }
-    
-    const room_id = req.query.room_id || await getRoomData(req.query.room_title)?.id;
-    
-    if (!room_id) {
-        return res.redirect("/chat_main");
-    }
-
-    try {
-        const roomData = getRoomData(room_id);
-        const room_title = decrypt(roomData.title);
-
-        if (roomData.password) {
-            if (req.session.authedRooms.includes(room_title)) {
-                const public_key = decrypt(getPublicKey(req.session.user_id));
-                res.render("chatroom.ejs", { room_id, room_title, sender_public_key: public_key, sender_id: req.session.user_id });
-            } else {
-                res.redirect(`/roomLogin?room_id=${room_id}&room_title=${room_title}`);
-            }
-        } else {
-            res.render("chatroom.ejs", { room_id, room_title, sender_id: req.session.user_id, sender_public_key: decrypt(getPublicKey(req.session.user_id)) });
-        }
-    } catch (error) {
-        console.error("Error accessing chat room:", error);
-        res.redirect("/chat_main?message=Error accessing chat room");
-    }
-});
-
-app.get("/profile", (req, res) => {
-    if (req.session.username) {
-        const userData = getUser(req.query.user_id) ? getUser(req.query.user_id) : res.redirect("/");
-        const user_id = req.query.user_id;
-        const username = decrypt(userData.username);
-        const aura = userData.aura;
-        const created_at = userData.created_at;
-        const admin = userData.admin;
-        const public_key = decrypt(userData.public_key);
-        const about = isItReal(userData.about) ? decrypt(userData.about) : "";
-        const global = userData.global; // Will he show up on global discovery list
-        const pfp = userData.pfp;
-        const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
-        const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
-
-        res.render("profile", {username, aura, created_at, admin, public_key, about, global, pfp, tags, email, user_id})
-    } else {
-        res.redirect("/login");
-    }
-});
-
-app.get("/account", (req, res) => {
-    if (req.session.username) {
-        const userData = getUser(req.session.user_id);
-
-        const username = decrypt(userData.username);
-        const aura = userData.aura;
-        const created_at = userData.created_at;
-        const last_paid = userData.last_paid;
-        const admin = userData.admin;
-        const public_key = decrypt(userData.public_key);
-        const about = isItReal(userData.about) ? decrypt(userData.about) : "";
-        const global = userData.global; // Will he show up on global discovery list
-        const pfp = userData.pfp;
-        const tags = isItReal(userData.tags) ? decrypt(userData.tags) : "";
-        const email =  isItReal(userData.email) ? decrypt(userData.email) : "";
-
-
-        res.render("account", {username, aura, created_at, admin, last_paid, public_key, about, global, pfp, tags, email})
-    } else {
-        res.redirect("/login");
-    }
-})
-
-
-app.get("/placeOrder", (req, res) => {
-    if (!req.session.username) return res.redirect("/login");
-    const { product_id, amount } = req.query;
-    for (let i=0; i<orders.length; i++) {
-        if (orders[i].session_id == req.session.id) return res.redirect("/error?message=Um you already have a pending order. Wait like 5 mins for it to clear out and then try again i guess");
-    }
-    if (!(isItReal(product_id) && isItReal(amount))) {
-        const address = generateNewAddress();
-        const product = getProductDataById(product_id);
-        const system_price = product.system_price;
-        const expected_price_USD = system_price * amount;
-        const expected_price_BTC = convertUsdToBtc(expected_price_USD);
-        const pending_order_uuid = generateUUID(); // We use a dict because 1) we can check the existence of a uuid in o(1) time, and 2) can reference pending orders and keep track of them from outside of the server
-        ordersPending[pending_order_uuid] = {time: Date.now(), address: address, session_id: req.session.id, product_id: product_id, amount: amount, expected: expected_price_BTC};
-        res.redirect("/orderPending?uuid="+pending_order_uuid);
-    } 
-});
-
-app.get("/orderPending", async (req, res) => {
-    if (!req.session) res.redirect("/login");
-    const { uuid } = req.query;
-    if (!isItReal(uuid)) return res.redirect("/error?message=this shouldnt happen, unless you did something manually or the server broke. try again pls or lmk!");
-    const order_in_question = ordersPending[uuid];
-    if (order_in_question && order_in_question.session_id == req.session.id) { // Check if such order exists, and then if it belongs to the guy in question
-        const amount_recieved = await getTotalReceivedByAddress(order_in_question.address);
-        if (amount_recieved >= order_in_question.expected) {
-            const product = getProductDataById(order_in_question.product_id);
-            // now, get the data abt the product, create the product, and then make a 
-            // product_id, user_id, amount, vendor_id, estimated_arrival
-            createOrder(product.id, order_in_question.user_id, order_in_question.amount, product.vendor_id, "1/1/1975");
-            return res.redirect("/orderComplete");
-        } else {
-            return res.render("order_pending", {address, uuid, amount_recieved, amount_expected: expected});
-        }
-    } else {
-        // Order doesnt exist. We say so
-        const problem_order_uuid = await generateUUID();
-        logger.warn("Hey! An order that didnt exist (timed out?) was attempted to be accessed. The problem order uuid was "+problem_payment_uuid+" .")
-        return res.redirect("/error?message=hm. this order doesnt seem to exist. It is possible that the order timed out (the payment didn't go through in time). Please try again. <br> IF YOU PAYED MONEY ALREADY AND IT DID THIS PROBLEM: your id is "+problem_payment_uuid+" . Save this.  Also save the BTC address to which you paid the money. Contact me with it and we will work something out.")
-    }
-});
-
-app.get("/orderComplete", (req, res) => {
-    const { uuid } = req.query;
-    if (!req.session) res.redirect("/login");
-    const order_in_question = ordersPending[uuid];
-    if (order_in_question && order_in_question.session_id == req.session.id) {
-        delete ordersPending[uuid];
-        return res.render("order_complete");
-    }
-    res.render("order_incomplete");
-});
-
-
-app.get('/createOrder', (req, res) => {
-    if (!req.session.username) return res.redirect("/login");
-    const product_id = req.query.product_id;
-    if (!product_id) return res.redirect("/error?message=Please go back and pick a valid product id");
-    const product = getProductDataById(product_id);
-    const product_decrypted = {
-        description: decrypt(product.description),
-        price: decrypt(product.price),
-        notes: decrypt(product.notes),
-        name: decrypt(product.name),
-        image: decrypt(product.image),
-        system_price: system_price
-    };
-    
-    res.render("create_order", {product: product_decrypted, message:req.query.message?req.query.message : ""});
-});
-
-// app.post('/executeCreateOrder', async (req, res) => {
-//     if (!req.session.username) return res.redirect("/login");
-//     const captcha = await checkCaptcha(req);
-//     if (!captcha) return res.redirect("/createOrder?message=Incorrect or expired captcha");
-//     const { amount, product_id }
-// })
-
-
-app.post('/updateAccount', upload.single('pfp'), (req, res) => {
-    if (req.session.username) {
-        const { username, email, tags, about, global, user_id, public_key, pfp } = req.body;
-        if (username == "" || global == "" || public_key == "" || pfp == "") {
-            res.redirect("/account");
-        }
-        const encryptedEmail = encrypt(email);
-        const encryptedTags = encrypt(tags);
-        const encryptedAbout = encrypt(about);
-        const encryptedPublicKey = encrypt(public_key);
-        const encryptedUsername = encrypt(username);
-        let newpfp;
-        if (req.file) {
-            // Convert uploaded file buffer to Base64
-            newpfp = req.file.buffer.toString('base64');
-        } else {
-            newpfp = req.session.pfp;
-        }
-    
-        //console.log(encryptedEmail, encryptedTags, encryptedAbout, encryptedUsername, newpfp)
-    
-        const stmt = db.prepare(`UPDATE users SET username = ?, email = ?, tags = ?, about = ?, global = ?, public_key = ?, pfp = ? WHERE id = ?`);
-        stmt.run(encryptedUsername, encryptedEmail, encryptedTags, encryptedAbout, global, encryptedPublicKey, newpfp, req.session.user_id)
-        res.redirect("/account"); 
-    } else {
-        res.redirect("/login");
-    }
-
-});
-
-app.post('/updateProduct', upload.single('image'), (req, res) => {
-    if (req.session.username) {
-        // Get form data
-        const { name, description, price, system_price, system_payments, notes, address, tags, product_id } = req.body;
-
-        // Validation checks: Make sure required fields are not empty
-        if (!isItReal(name) || !isItReal(description) || !isItReal(price) || !isItReal(tags)) {
-            return res.status(400).send('Required fields (name, description, price, tags) are missing.');
-        }
-
-        // Ensure system_price is a valid number if provided
-        if (system_price && isNaN(system_price)) {
-            return res.status(400).send('System price must be a valid number.');
-        }
-
-        // Encrypt the data from the form
-        const encryptedDescription = encrypt(description);
-        const encryptedPrice = encrypt(price);
-        const encryptedName = encrypt(name);
-        const encryptedTags = encrypt(tags);
-        const encryptedNotes = encrypt(notes);
-        const encryptedAddress = encrypt(address);
-        const encryptedSystemPrice = system_price ? encrypt(system_price) : null;
-        const encryptedSystemPayments = system_payments ? 1 : 0;
-
-        // Handle image data (use uploaded image if available, otherwise retain the old image)
-        const encryptedImage = req.file ? req.file.buffer.toString('base64') : null;
-
-        // Prepare the update query
-        const stmt = db.prepare(`
-            UPDATE catalogue SET
-                name = ?, description = ?, price = ?, system_price = ?, system_payments = ?, 
-                notes = ?, address = ?, tags = ?, image = ?
-            WHERE id = ?
-        `);
-
-        // Run the query and check for errors
-        try {
-            stmt.run(
-                encryptedName, encryptedDescription, encryptedPrice, encryptedSystemPrice, encryptedSystemPayments,
-                encryptedNotes, encryptedAddress, encryptedTags, encryptedImage, product_id
-            );
-            
-            // After successfully running the query, redirect to the updated product page
-            res.redirect(`/product?product_id=${product_id}`);
-        } catch (err) {
-            // Log and handle database errors
-            console.error('Error updating product:', err.message);
-            res.status(500).send('An error occurred while updating the product.');
-        }
-    } else {
-        // Redirect to login if no session found
-        res.redirect("/login");
-    }
-});
-
-app.get("/vendor", async (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login")
-    }
-    let vendor_id;
-    if (req.query.vendor_id) {
-        vendor_id = req.query.vendor_id;
-    } else {
-        return res.redirect("/");
-    }
-    const vendorInfo = getVendorData(vendor_id);
-    const decryptedAbout = decrypt(vendorInfo.about);
-    const decryptedEmail = decrypt(vendorInfo.email);
-    const decryptedTags = decrypt(vendorInfo.tags);
-    const decryptedName = decrypt(vendorInfo.vendor_name);
-    const created_at = vendorInfo.created_at;
-    const user_id = vendorInfo.user_id;
-    const userAura = await getAuraById(user_id);
-    const renderVendor = {
-        name: decryptedName,
-        about: decryptedAbout,
-        email: decryptedEmail,
-        tags: decryptedTags,
-        created_at: created_at,
-        user_id: user_id,
-        aura: userAura
-    }
-    const products = getProducts(vendor_id);
-    let renderProducts = [];
-    for (let product of products) {
-        const decryptedName = decrypt(product.name);
-        const decryptedTags = decrypt(product.tags);
-        const decryptedImage = product.image ? decrypt(product.image) : "";
-        const decryptedPrice = decrypt(product.price);
-        const decryptedBuys = product.buys != "0" && product.buys != 0 ? decrypt(product.buys) : "1";
-        const productData = {
-            name: decryptedName,
-            tags: decryptedTags,
-            id: product.id,
-            image: decryptedImage,
-            price: decryptedPrice,
-            buys: decryptedBuys
-        }
-        renderProducts.push(productData);
-    }
-    
-    res.render("vendor_info", {renderVendor, renderProducts})
-});
-
-
-app.get("/marketplace", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-    let products = []
-    const acceptableParameters = {aura: ["asc, desc"]}
-    const sort_method = req.query.sort_method ? req.query.sort_method : "default";
-    const sort_parameter = req.query.sort_parameter ? req.query.sort_parameter : "default";
-
-    switch (sort_method){
-        case "default":
-            products = getProductsByBuys();
-            break;
-        case "name":
-            let product_names = product_names_tree.getPrefix(sort_parameter)
-            for (let name of product_names) {
-                products.push(name_product_dict[name]);
-            }
-            break;
-        case "tags_all":
-            if (!isItReal(sort_parameter)) return res.redirect("/marketplace")
-            products = searchTagsAND(sort_parameter);
-            break;
-        case "tags_or":
-            if (!isItReal(sort_parameter)) return res.redirect("/marketplace");
-            products = searchTagsOR(sort_parameter);
-            break;
-        default:
-            return res.redirect("/marketplace");
-    }
-
-    let renderProducts = [];
-    for (let product of products) {
-        const decryptedName = decrypt(product.name);
-        const decryptedPrice = decrypt(product.price);
-        const buys = product.buys;
-        const decryptedTags = decrypt(product.tags);
-        const system_payments = product.system_payments;
-        const decryptedImage = decrypt(product.image);
-        const productData = {
-            name: decryptedName,
-            price: decryptedPrice,
-            buys: buys,
-            tags: decryptedTags,
-            system_payments: system_payments,
-            image: decryptedImage,
-            id: product.id
-        }
-        renderProducts.push(productData);
-    }
-
-    res.render("marketplace", {
-        products: renderProducts,
-        message: req.query.message || "",
-        message_success: req.query.message_success || "",
-        sort_method: sort_method,
-        sort_parameter: sort_parameter
-    });
-});
-
-
-app.get("/deleteConversation", (req, res) => {
-    if (req.session.username) {
-        const receiver_id = req.query.user_id;
-        let users;
-        if (receiver_id > req.session.user_id) {
-            users = `${receiver_id},${req.session.user_id}`;
-        } else {
-            users = `${req.session.user_id},${receiver_id}`;
-        }
-        deleteConversation(users);
-        res.redirect("/directMessagesMain");
-    } else {
-        res.redirect("/login");
-    }
-});
-
-
-// Password check for private chat rooms
-app.get("/roomLogin", (req, res) => {
-    if (req.session.username) {
-        const room_id = req.query.room_id || res.redirect("/chat_main");
-        const room_title = req.query.room_title || res.redirect("/chat_main");
-
-        const authToken = crypto.randomBytes(32).toString('hex');
-        req.session.authToken = authToken;
-        validAuthTokens.push(authToken);
-
-        res.render("chatroom_password.ejs", { room_id, room_title });
-    } else {
-        res.redirect("/login");
-    }
-});
-
-// Execute room login with password
-app.post("/executeRoomLogin", async (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-    const captcha = await checkCaptcha(req);
-    if (!captcha) res.redirect("/chat_main?message=Incorrect or expired captcha")
-
-    if (!req.session.authToken || !validAuthTokens.includes(req.session.authToken)) {
-        return res.redirect("/login");
-    }
-
-    req.session.authToken = null;
-
-    const room_title = req.body.room_title || res.redirect("/chat_main");
-    const room_id = req.body.room_id || res.redirect("/chat_main");
-    const request_password = req.body.password;
-
-    if (!request_password) {
-        return res.redirect(`/middlemanRoom?destination=${encodeURIComponent("/roomLogin")}`);
-    }
-
-    try {
-        const roomData = getRoomData(room_id);
-        const hashedRequestPassword = await hashPassword(request_password);
-
-        if (decrypt(roomData.password) === hashedRequestPassword) {
-            req.session.authedRooms.push(room_title);
-            res.redirect(`/middlemanRoom?destination=${encodeURIComponent(`/chatroom?room_id=${room_id}`)}`);
-        } else {
-            res.redirect(req.get('Referer'));
-        }
-    } catch (error) {
-        console.error("Error executing room login:", error);
-        res.redirect("/chat_main?message=Error logging in to room");
-    }
-});
-
-app.get("/save_private_key_to_localstorage", (req, res) => {
-    res.render("save_private_key");
-});
-
-app.post("/executeCreateAccount", upload.single('pfp_'), async (req, res) => {
-    if (!req.session.username) {
-        const captcha = await checkCaptcha(req)
-        if (!captcha) return res.redirect("/createAccount?message=incorrect or expired captcha");
-        const { username, password, password1, email, tags, about, public_key, global_bool } = req.body;
-        if (username == "" || password == "" || public_key == "") {
-            res.redirect("/createAccount?message=You missed a piece");
-            return;
-        }
-        if (password != password1) {
-            res.redirect("/createAccount?message=Your passwords don't match");
-            return;
-        }
-
-        let newpfp;
-        if (req.file) {
-            // Convert uploaded file buffer to Base64
-            newpfp = req.file.buffer.toString('base64');
-        } else {
-            fs.readFile("public/images/image.png", (err, data) => {
-                if (err) {
-                    console.error('Error reading the file:', err);
-                    return;
-                }
-
-                // Convert to Base64
-                const base64String = data.toString('base64');
-                newpfp = base64String;
-            });
-        }
-        await createUser(username, password, 0, about, public_key, global_bool, newpfp, tags, email);
-        res.redirect("/login?success=please log in with your new account!!");
-    } else {
-        res.redirect("/")
-    }
-});
-
-app.get("/createAccount", (req, res) => {
-    if (!req.session.username) {
-        res.render("create_account");
-    } else {
-        res.redirect("/login?message=youre already logged in. If you see this, something broke. Contact me.");
-    }
-})
-
-app.get("/globalUsers",async  (req, res) => {
- if (req.session.username) {
-    const users_ = await getUsers();
-    let renderUsers = [];
-    for (let user of users_) {
-        if (user.global) {
-            const username = decrypt(user.username);
-            const aura = user.aura
-            const tags = isItReal(user.tags) ? decrypt(user.tags) : "";
-            const id = user.id
-            renderUsers.push({username, aura, tags, id});
-        }
-    }
-    res.render("global_users_list", {users: renderUsers});
-    return;
- }
- res.redirect("/login");
- 
-})
-
-app.get("/middlemanRoom", (req, res) => {
-    res.redirect(req.query.destination || "/login");
-});
-
-app.get("/directMessagesMain", async (req, res) => {
-    if (req.session.username) {
-
-        const users = await getUsersForDMs(req.session.user_id);
-        res.render("direct_messages_main", { user_id: req.session.user_id, users});
-    } else {
-        res.redirect("/login");
-    }
-});
-
-app.get("/goToDirectMessages", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-
-    const receiver_user_id = req.query.username ? usernameToId[req.query.username] : req.query.user_id || res.redirect("/directMessagesMain");
-    
-    if (!receiver_user_id) {
-        return res.redirect("/directMessagesMain");
-    }
-    
-    res.redirect("/directMessagesChat?user_id=" + receiver_user_id);
-});
-
-app.get("/post", async (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-
-    const id = req.query.id || "";
-    const comments_sort = req.query.comments_sort || "aura_desc";
-
-    if (id === "") {
-        return res.redirect("/forum?message=please+select+a+post+to+view");
-    }
-
-    try {
-        const post = getPostById(id);
-        const decryptedContent = decrypt(post.content);
-        const decryptedUsername = decrypt(getUsernameById(post.user_id));
-        const decryptedTitle = decrypt(post.title);
-        
-        const post_to_render = {
-            id: post.id,
-            content: decryptedContent,
-            username: decryptedUsername,
-            title: decryptedTitle,
-            aura: post.aura,
-            created_time: post.created_time
-        };
-        const poster_data = getUser(post.user_id);
-        const poster_pfp = poster_data.pfp;
-        const comments_for_post = await getComments(id, comments_sort);
-        const comments_to_render = await Promise.all(comments_for_post.map(async comment => {
-            const decryptedContentComment = decrypt(comment.content);
-            const user = await getUser(comment.user_id); // Get user data using user_id
-            const decryptedUsernameComment = decrypt(user.username); // Assuming username is part of user data
-            const pfp = user.pfp; // Assuming pfp is part of the user data
-        
-            return {
-                id: comment.id,
-                content: decryptedContentComment,
-                username: decryptedUsernameComment,
-                pfp: pfp, // Add pfp to the comment object
-                aura: comment.aura,
-                created_time: comment.created_at
-            };
-        }));
-
-        res.render("post.ejs", { post: post_to_render, comments: comments_to_render, pfp: poster_pfp});
-    } catch (error) {
-        console.error("Error retrieving post:", error);
-        res.redirect("/forum?message=Error retrieving post");
-    }
-});
-
-app.get("/chathelp", (req, res) => {
-    res.render("chat_help.ejs");
-});
-
-app.post("/postComment", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-
-    const { content = "", post_id = "" } = req.body;
-
-    if (!content || !post_id) {
-        return res.redirect(`/post?id=${post_id}&message=Error posting comment`);
-    }
-
-    try {
-        createComment(post_id, req.session.user_id, content);
-        res.redirect("/post?id=" + post_id);
-    } catch (error) {
-        console.error("Error posting comment:", error);
-        res.redirect(`/post?id=${post_id}&message=Error posting comment`);
-    }
-});
-
-app.get("/security", (req, res) => {
-    res.render("security.ejs");
-});
-
-app.get("/directMessagesChat", (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-
-    const receiver_id = req.query.user_id;
-
-    if (!receiver_id) {
-        return res.redirect("/directMessagesMain");
-    }
-
-    const sender_id = req.session.user_id;
-    const sender_username = getUsernameById(sender_id);
-    const receiver_public_key = getPublicKey(receiver_id);
-    const sender_public_key = getPublicKey(sender_id);
-
-    const decrypted_receiver_public_key = receiver_public_key !== -1 ? decrypt(receiver_public_key) : "This user does not exist, or does not have a public key associated with their account. Try again.";
-    const decrypted_sender_public_key = sender_public_key !== -1 ? decrypt(sender_public_key) : "You don't exist or don't have a public key associated with your account. Try again.";
-
-    const data = {
-        receiver_id,
-        sender_id,
-        sender_username,
-        receiver_public_key: decrypted_receiver_public_key,
-        sender_public_key: decrypted_sender_public_key
-    };
-    
-    res.render("direct_messages_chat", data);
-});
-
-app.get("/createRoom", (req, res) => {
-    if (req.session.username) {
-        res.render("create_room.ejs");
-    } else {
-        res.redirect("/login");
-    }
-});
-
-app.post("/executeCreateRoom", async (req, res) => {
-    if (!req.session.username) {
-        return res.redirect("/login");
-    }
-    const captcha = await checkCaptcha(req);
-    if(!captcha) res.redirect("/createRoom?message=Incorrect or expired captcha")
-
-    const room_title = req.body.room_title || res.redirect("/createRoom");
-    const password = req.body.password || "";
-    const locked = req.body.locked ? 1 : 0;
-
-    try {
-        const id = await createRoom(room_title, password, locked);
-        res.redirect("/chat_main?message=success: your room id is " + id);
-    } catch (error) {
-        console.error("Error creating room:", error);
-        res.redirect("/createRoom?message=Error creating room");
-    }
-});
-
-app.post("/executeLogin", async (req, res) => {
-    const { username: request_username = "", password: request_password = "" } = req.body;
-
-    if (!request_username || !request_password) {
-        return res.redirect("/login?message=Please+provide+username+and+password");
-    }
-    const captcha = await checkCaptcha(req)
-    if (!captcha) return res.redirect("/login?message=Incorrect or expired captcha")
-
-    try {
-        const users_database = await getUsers();
-        for (const user_database of users_database) {
-            const result = await bcrypt.compare(request_password, decrypt(user_database.password));
-            if (decrypt(user_database.username) === request_username && result) {
-                req.session.username = request_username;
-                req.session.admin = user_database.admin;
-                req.session.last_paid = user_database.last_paid;
-                req.session.user_id = user_database.id;
-                req.session.authedRooms = [];
-                req.session.pfp = user_database.pfp;
-                
-                if (user_database.vendor_id != null) {
-                    req.session.vendor = true;
-                    req.session.vendor_id = user_database.vendor_id;
-                } // make sure to set the actual user's vendor_id to not null when a vendorship is created. Add data to session. then, test.
-                if (req.session.admin) {
-                    logger.info(`An admin logged in - ${req.session.username}`);
-                }
-                return res.redirect(req.get("Referrer") || "/");
-            }
-        }
-        res.redirect("/login?message=incorrect");
-    } catch (error) {
-        console.error("Error during login:", error);
-        res.redirect("/login?message=Error during login");
-    }
-});
-
-app.get("/logout", (req, res) => {
-    req.session.destroy();
-    res.redirect("/login");
-});
-
-// Admin routes
-
-app.get("/deleteRoom", (req, res) => {
-    if (req.session.admin) {
-        res.render("delete_room");
-    } else {
-        res.redirect("/");
-    }
-});
-
-app.post("/executeDeleteRoom", (req, res) => {
-    if (!req.session.admin) {
-        return res.redirect("/");
-    }
-
-    const room_title = req.body.room_title || "";
-    const room_id = room_title ? roomNameToId[room_title] : req.body.room_id || res.redirect("/chat_main");
-
-    if (!room_id) {
-        return res.redirect("/chat_main?message=Invalid room ID");
-    }
-
-    try {
-        deleteRoom(room_id);
-        res.redirect("/chat_main?message=Deleted successfully");
-    } catch (error) {
-        console.error("Error deleting room:", error);
-        res.redirect("/chat_main?message=Error deleting room");
-    }
-});
-
-
-
-
-
-
-
-
 
 
 io.on('connection', (socket) => {
