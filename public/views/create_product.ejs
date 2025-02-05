@@ -9,7 +9,7 @@
         <%- include('nav', { activePage: 'vendorship' }) %>
 
         <section id="main">
-            <p style="color: red"><% message %></p>
+            <p style="color: red"><%= message %></p>
             <h1>Create Product</h1>
             <form action="/executeCreateProduct" method="POST" enctype="multipart/form-data">
                 <input name="name" placeholder="name" required>

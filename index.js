@@ -204,6 +204,19 @@ let tag_names_dict = {};
 let name_product_dict = {};
 
 /**
+ * Generate a new address
+ * @returns {string} the address
+ */
+async function generateNewAddress() {
+    try {
+        const address = await client.getNewAddress(); // Optionally pass a label and address type
+        return address;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
  * Repopulated the product names trie and dict
  */
 function rePopulateTrieAndDict() {
@@ -277,27 +290,8 @@ function rePopulateTrieAndDict() {
     //console.log(tag_names_dict)
 }
 
-/**
- * Generate a new address
- * @returns {string} the address
- */
-async function generateNewAddress() {
-    try {
-        const address = await client.getNewAddress(); // Optionally pass a label and address type
-        return address;
-    } catch (error) {
-        return false;
-    }
-}
-/**
- * Generate UUID
- * @returns {string} makes a uuid
- */
-function generateUUID() {
-    const timestamp = Date.now(); // Get current timestamp in milliseconds
-    const randomInt = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER); // Random large integer
-    return `${timestamp}${randomInt}`; // Combine them to form a pseudo-unique ID
-  }
+
+
 
 /**
  * Search  for all posts with any of the specified tags
