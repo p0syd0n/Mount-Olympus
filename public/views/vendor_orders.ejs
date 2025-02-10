@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Orders placed on your products</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/vendor_orders.css">
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'vendorship' }) %>
+
+        <section id="main">
+            <p style="color: green"><%= message %></p>
+            <h1>Shipped Orders</h1>
+            <% if (shippedOrders.length > 0) { %>
+                <% for (let i = 0; i < shippedOrders.length; i++) { %>
+                    <div class="order shipped">
+                        <h3>Order ID: <%= shippedOrders[i].id %></h3>
+                        <h4>Product ID: <%= shippedOrders[i].product_id %></h4>
+                        <h4>User ID: <%= shippedOrders[i].user_id %></h4>
+                        <h4>Amount: <%= shippedOrders[i].amount %></h4>
+                        <h4>Estimated Arrival: <%= shippedOrders[i].estimated_arrival %></h4>
+                        
+                        <% if (shippedOrders[i].shipment_proof) { %>
+                            <h4>Shipment Proof:</h4>
+                            <img src="data:image/png;base64,<%= shippedOrders[i].shipment_proof %>" alt="Shipment Proof" style="max-width: 200px; border: 1px solid #ccc;">
+                        <% } else { %>
+                            <h4>No Shipment Proof Available</h4>
+                        <% } %>
+
+                        <h4>Address: <%= shippedOrders[i].address %></h4>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <p>No shipped orders yet.</p>
+            <% } %>
+
+            <h1>Not Shipped Orders</h1>
+            <% if (notShippedOrders.length > 0) { %>
+                <% for (let i = 0; i < notShippedOrders.length; i++) { %>
+                    <div class="order not-shipped">
+                        <h3>Order ID: <%= notShippedOrders[i].id %></h3>
+                        <h4>Product ID: <%= notShippedOrders[i].product_id %></h4>
+                        <h4>User ID: <%= notShippedOrders[i].user_id %></h4>
+                        <h4>Amount: <%= notShippedOrders[i].amount %></h4>
+                        <h4>Estimated Arrival: <%= notShippedOrders[i].estimated_arrival %></h4>
+
+                        <% if (notShippedOrders[i].shipment_proof) { %>
+                            <h4>Shipment Proof:</h4>
+                            <img src="data:image/png;base64,<%= notShippedOrders[i].shipment_proof %>" alt="Shipment Proof" style="max-width: 200px; border: 1px solid #ccc;">
+                        <% } else { %>
+                            <h4>No Shipment Proof Available</h4>
+                        <% } %>
+
+                        <h4>Address: <%= notShippedOrders[i].address %></h4>
+                        <a href="/dispatchOrder?order_id=<%= notShippedOrders[i].id %>">Dispatch (Mark as shipped)</a>
+                    </div>
+                <% } %>
+            <% } else { %>
+                <p>No orders yet to be shipped.</p>
+            <% } %>
+        </section>
+    </body>
+</html>

@@ -1,0 +1,35 @@
+<html>
+  <head>
+      <title>Dispatch Order</title>
+      <link rel="stylesheet" href="/styles/main.css">
+      <link rel="stylesheet" href="/styles/dispatch_order.css">
+  </head>
+  <body>
+      <%- include('nav', { activePage: 'vendorship' }) %>
+
+      <section id="dispatch-order">
+          <h2>Dispatch Order</h2>
+          
+          <form action="/executeDispatchOrder" method="POST" enctype="multipart/form-data">
+              <!-- Expected Arrival Date -->
+              <div class="form-group">
+                  <label for="expected_arrival">Expected Arrival Date:</label>
+                  <input type="text" name="expected_arrival" id="expected_arrival" placeholder="Enter Expected Arrival Date" required>
+              </div>
+              
+              <!-- Shipment Proof Image -->
+              <div class="form-group">
+                  <label for="shipment_proof">Upload Shipment Proof (Image):</label>
+                  <input type="file" name="shipment_proof" id="shipment_proof" accept="image/*" required>
+              </div>
+
+              <!-- Hidden Order ID -->
+              <input type="hidden" name="order_id" value="<%= order_id %>">
+
+              <div class="form-actions">
+                  <button type="submit" class="submit-button">Dispatch Order</button>
+              </div>
+          </form>
+      </section>
+  </body>
+</html>

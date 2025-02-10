@@ -1,0 +1,37 @@
+<html>
+<head>
+    <title>Your Orders</title>
+    <link rel="stylesheet" href="/styles/main.css">
+    <link rel="stylesheet" href="/styles/my_orders.css">
+</head>
+<body>
+    <%- include('nav', { activePage: 'myOrders' }) %>
+    <section id="my-orders">
+    <p style="color: green"><% message %></p>
+
+        <!-- Displaying user's orders -->
+        <div class="orders-container">
+            <% for (let i = 0; i < orders.length; i++) { %>
+                <div class="order-box">
+                    <h3><%= orders[i].product_name %></h3>
+                    <p class="amount">Amount: <%= orders[i].amount %></p>
+                    <p class="arrival-date">Estimated Arrival: <%= orders[i].estimated_arrival %></p>
+                    <% if (orders[i].shipment_proof) { %>
+                        <p class="shipment-proof">
+                            Shipment Proof:
+                            <img src="data:image/png;base64,<%= orders[i].shipment_proof %>" alt="Shipment Proof" class="shipment-image" />
+                        </p>
+                    <% } else { %>
+                        <p class="shipment-proof">No shipment proof available</p>
+                    <% } %>
+                    <p class="address">Delivery Address: <%= orders[i].address %></p>
+                    <form action="/setReceived" method="POST">
+                        <input name="order_id" value="<%= orders[i].id %>">
+                        <button type="submit">I have received the product</button>
+                    </form>
+                </div>
+            <% } %>
+        </div>
+    </section>
+</body>
+</html>

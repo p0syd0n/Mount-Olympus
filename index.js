@@ -9,6 +9,7 @@ const bcrypt = require('bcrypt');
 const { prompt, hashPassword, deriveKey } = require('./util.js');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const punycode = require('punycode/');
 const helmet = require('helmet');
 const winston = require('winston');
 const cors = require('cors');
@@ -25,7 +26,10 @@ const { v4: uuidv4 } = require('uuid');
 const { createCanvas } = require('canvas');
 const Client = require('bitcoin-core');
 const { getTransactions } = require('./blockchain.js');
-
+const axios = require("axios");
+const { restoreWallet } = require('bitcoin-core/src/methods.js');
+const { error } = require('console');
+const { isTypedArray } = require('util/types');
 
 
 const db = new Database('database/database.db');
@@ -74,13 +78,15 @@ const storage = multer.memoryStorage(); // Store files in memory as Buffer
 const upload = multer({ storage: storage });
 
 
-const client = new Client({
-    network: 'testnet', // or 'testnet', 'regtest'
-    username: process.env.USERNAME_BTC,
-    password: process.env.PASSWORD_BTC,
-    host: process.env.HOST_BTC,
-    port: process.env.PORT_BTC
-});
+// const client = new Client({
+//     network: 'testnet', // or 'testnet', 'regtest'
+//     username: process.env.USERNAME_BTC,
+//     password: process.env.PASSWORD_BTC,
+//     host: process.env.HOST_BTC,
+//     port: process.env.PORT_BTC
+// });
+
+const TESTNET = process.env.TESTNET == "1" ? true : false;
 
 setInterval(() => {
     const now = Date.now();
@@ -324,6 +330,20 @@ function searchTagsOR(tags) {
     return Array.from(resultSet);
 }
 
+function getUsersOrders(user_id) {
+    if (!isItReal(user_id.toString())) return -1;
+    const hashed_user_id = hashPassword(user_id.toString());
+    const stmt = db.prepare(`SELECT * FROM orders WHERE user_id_hash = ?`);
+    let result;
+    try {
+        result = stmt.all(hashed_user_id);
+    } catch (e) {
+        logger.error("Error getting all orders for a specific user. \n\n"+e);
+        return -1;
+    }
+    return result;
+}
+
 /**
  * Search for all posts with all of the specified tags.
  * @param {string} tags comma-seperated list of tags
@@ -523,6 +543,23 @@ function getProductDataById(product_id) {
 }
 
 /**
+ * Get information about a speficic order. Encrypted.
+ * @param {int} order_id The ID of the order
+ * @returns Database result or -1
+ */
+async function getOrderDataById(order_id) {
+    const stmt = db.prepare(`SELECT * FROM orders WHERE id = ?`);
+    let result;
+    try {
+        result = await stmt.all(order_id);
+    } catch(e) {
+        logger.error("Error getting order data by id. \n "+e)
+        return -1;
+    }
+    return result;
+}
+
+/**
  * Delete a room by its id
  * @param {int} roomId the id of the room to delete
  * @returns {int} 1 in case of success
@@ -533,6 +570,42 @@ function deleteRoom(roomId) {
     const stmt2 = db.prepare(`DELETE FROM messages WHERE room_id = ?`);
     stmt2.run(roomId);
     return 1;
+}
+
+
+async function setReceivedOrder(order_id, user_id) {
+    const user_id_hash = hashPassword(user_id.toString());
+
+    const order_data = getOrderDataById(order_id);
+    const order_product_id = decrypt(order_data.product_id);;
+    const stmt = db.prepare(`DELETE FROM orders WHERE id = ? AND user_id_hash = ?`);
+    let result0;
+    try {
+        result0 = await stmt.run(order_id, user_id_hash);
+    } catch (e) {
+        logger.error("Error setting an order to received (deleting the order). \n "+e);
+        return -1;
+    }
+    
+    const stmt1 = db.prepare(`SELECT verified_buyers FROM catalogue WHERE id = ? `);
+    let result1;
+    try {
+        result1 = await stmt1.get(order_product_id);
+    } catch (e) {
+        logger.error("Error settring an order to received. (Getting the verified buyers from the product)\n"+e);
+        return -1;
+    }
+    let verified_buyers = decrypt(result1);
+    verified_buyers += user_id;
+    const stmt2 = db.prepare(`UPDATE catalogue SET verified_buyers = ? WHERE id = ?`);
+    let result2;
+    try {
+        result2 = await stmt2.run(verified_buyers, order_product_id);
+    } catch (e) {
+        logger.error("Error settring an order to received. (Updating verified buyers.)\n"+e);
+        return -1;
+    }
+
 }
 
 /**
@@ -582,46 +655,80 @@ function getMessages(users) {
  */
 async function convertUsdToBtc(usdAmount) {
     try {
-      // Fetch the current BTC price in USD from CoinGecko
-      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-        params: {
-          ids: 'bitcoin',
-          vs_currencies: 'usd',
-        },
-      });
-  
-      const btcPriceInUsd = response.data.bitcoin.usd;
-  
-      if (!btcPriceInUsd) {
-        throw new Error('Failed to retrieve BTC price');
-      }
-  
-      // Calculate the BTC amount
-      const btcAmount = usdAmount / btcPriceInUsd;
-  
-      return btcAmount;
+        let response;
+
+        if (TESTNET) {
+            // Testnet - you may want to set a mock BTC price
+            const btcPrice = 30000; // Approximate testnet BTC price (for simulation)
+            return usdAmount / btcPrice; // Convert USD to BTC on testnet
+        } else {
+            // Mainnet - fetch from Coinpaprika API
+            response = await fetch("https://api.coinpaprika.com/v1/tickers/btc-bitcoin");
+        }
+
+        const data = await response.json();
+
+        if (!data || !data.quotes || !data.quotes.USD) {
+            throw new Error("Invalid API response");
+        }
+
+        const btcPrice = data.quotes.USD.price; // USD price of 1 BTC
+        return usdAmount / btcPrice; // Convert USD to BTC on mainnet
     } catch (error) {
-      console.error('Error converting USD to BTC:', error.message);
-      throw error;
+        console.error("Error fetching BTC price:", error);
+        return null;
     }
-  }
+}
+
 
 /**
  * 
  * @param {string} address The address which you are checking
  * @returns {int} The amount that has been recieved by said address
  */
-  async function getTotalReceivedByAddress(address) {
+// async function getTotalReceivedByAddress(address) {
+//     try {
+//         // Get the total amount received by the address
+//         const totalReceived = await client.getReceivedByAddress(address);
+//         logger.info(`Address ${address} has received a total of ${totalReceived} BTC`);
+//         return totalReceived;
+//     } catch (error) {
+//         logger.error(`Error fetching received amount for address ${address}:`, error.message);
+//         throw error;
+//     }
+// }
+
+/**
+ * 
+ * @param {string} address The address which you are checking
+ * @returns {int} The amount that has been recieved by said address
+ */
+
+async function getTotalReceivedByAddress(address, minutes) {
     try {
-      // Get the total amount received by the address
-      const totalReceived = await client.getReceivedByAddress(address);
-      logger.info(`Address ${address} has received a total of ${totalReceived} BTC`);
-      return totalReceived;
+        let response;
+
+        if (TESTNET) {
+            // Testnet - use Blockstream Testnet API or Mempool.space Testnet API
+            response = await fetch(`https://mempool.space/testnet/api/address/${address}`);
+        } else {
+            // Mainnet - use Blockchain API for mainnet
+            response = await fetch(`https://blockchain.info/rawaddr/${address}`);
+        }
+
+        const data = await response.json();
+        console.log(JSON.stringify(data))
+        if (TESTNET) {
+            return data.chain_stats.funded_txo_sum / 1000000
+        }
+
     } catch (error) {
-      logger.error(`Error fetching received amount for address ${address}:`, error.message);
-      throw error;
+        console.error("Error fetching BTC transactions:", error);
+        return null;
     }
-  }
+}
+
+
 /**
  * Update the account for a vendor.
  * @param {int} vendor_id The id of the vendor to update
@@ -712,6 +819,17 @@ async function checkCaptcha(req) {
 
 }
 
+
+/**
+ * Get all orders for a specific vendor using his vendor id in O(1) time
+ * @param {int} vendor_id The id of the vendor
+ * @returns Database result or error I suppose
+ */
+async function getOrdersForVendor(vendor_id)  {
+    const hashed_vendor_id = await hashPassword(vendor_id.toString())
+    const stmt = db.prepare(`SELECT * FROM orders WHERE vendor_id_hash=?`);
+    return stmt.all(hashed_vendor_id);
+}
 /**
  * Create user. Will automatically encrypt data..
  * @param {string} username - Username for new user.
@@ -766,16 +884,34 @@ function getMessagesRoom(roomId) {
  * @param {int} amount The amount of products bought
  * @returns Result of the SQL query
  */
-function createOrder(product_id, user_id, amount, vendor_id, estimated_arrival) {
+function createOrder(product_id, user_id, amount, vendor_id, shipping_address) {
     if (amount <= 0 || user_id <= 0 || amount <= 0 || vendor_id <= 0) return -1;
-    const stmt = db.prepare(`INSERT INTO orders (product_id, user_id, amount, vendor_id, estimated_arrival, shipment_proof, recieved) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const stmt = db.prepare(`INSERT INTO orders (product_id, user_id, amount, vendor_id, estimated_arrival, shipment_proof, recieved, address, vendor_id_hash, user_id_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const encrypted_product_id = encrypt(product_id.toString());
     const encrypted_user_id = encrypt(user_id.toString());
     const encrypted_amount = encrypt(amount.toString());
     const encrypted_vendor_id = encrypt(vendor_id.toString());
-    const encrypted_estimated_arrival = encrypt(estimated_arrival);
-    const result = stmt.run(encrypted_user_id, encrypted_user_id, encrypted_amount, encrypted_vendor_id, encrypted_estimated_arrival, "", false);
+    const encrypted_shipping_address = encrypt(shipping_address);
+    const hashed_vendor_id = hashPassword(vendor_id.toString());
+    const user_id_hash = hashPassword(user_id.toString())
+    const result = stmt.run(encrypted_product_id, encrypted_user_id, encrypted_amount, encrypted_vendor_id, "", "", 0, encrypted_shipping_address, hashed_vendor_id, user_id_hash);
     return result;
+}
+
+function orderBelongsToVendor(order_id, vendor_id) {
+    const hashed_vendor_id = hashPassword(vendor_id.toString());
+    
+    // Use parameterized query to prevent SQL injection and avoid fetching unnecessary data.
+    const stmt = db.prepare(`SELECT 1 FROM orders WHERE id = ? AND vendor_id_hash = ? LIMIT 1`);
+    
+    let result;
+    try {
+        result = stmt.get(order_id, hashed_vendor_id); // 'get' only retrieves a single row.
+        return result !== undefined; // Return true if a match is found, otherwise false
+    } catch (error) {
+        console.error("Error checking if order belongs to vendor:", error);
+        return false;
+    }
 }
 
 /**
@@ -1083,6 +1219,39 @@ function plusMinusAura(userId, amount) {
     const updateStmt = db.prepare('UPDATE users SET aura = ? WHERE id = ?');
     return updateStmt.run(newAura, userId).changes > 0; // Returns true if the update succeeded
 }
+
+
+
+
+function dispatchOrder(expected_arrival, shipment_proof, order_id, vendor_id) {
+    if (!(isItReal(expected_arrival) && isItReal(shipment_proof) && isItReal(order_id.toString()) && isItReal(vendor_id.toString()))) {
+        return -1;
+    }
+
+    const encrypted_expected_arrival = encrypt(expected_arrival);
+    const encrypted_shipment_proof = encrypt(shipment_proof);
+    const hashed_vendor_id = hashPassword(vendor_id.toString());
+
+    const stmt = db.prepare(`UPDATE orders SET estimated_arrival = ?, shipment_proof = ? WHERE id = ? AND vendor_id_hash = ?`);
+    
+    let result;
+    try {
+        result = stmt.run(encrypted_expected_arrival, encrypted_shipment_proof, order_id, hashed_vendor_id);
+        
+        // Check if the update was successful (if `changes` > 0, an order was updated)
+        if (result.changes === 0) {
+            logger.warn("No order was updated. Possible invalid order ID or vendor mismatch.");
+            return -1;
+        }
+
+    } catch (e) {
+        logger.error("Problem dispatching order:\n" + e.toString());
+        return -1;
+    }
+    
+    return result;
+}
+
 
 /**
  * Vote on a piece of content.
@@ -2147,76 +2316,226 @@ app.post('/updateProduct', upload.single('image'), (req, res) => {
 });
 
 
-app.get("/placeOrder", (req, res) => {
-    if (!req.session.username) return res.redirect("/login");
-    const { product_id, amount } = req.query;
-    for (let i=0; i<orders.length; i++) {
-        if (orders[i].session_id == req.session.id) return res.redirect("/error?message=Um you already have a pending order. Wait like 5 mins for it to clear out and then try again i guess");
-    }
-    if (!(isItReal(product_id) && isItReal(amount))) {
-        const address = generateNewAddress();
-        const product = getProductDataById(product_id);
-        const system_price = product.system_price;
-        const expected_price_USD = system_price * amount;
-        const expected_price_BTC = convertUsdToBtc(expected_price_USD);
-        const pending_order_uuid = generateUUID(); // We use a dict because 1) we can check the existence of a uuid in o(1) time, and 2) can reference pending orders and keep track of them from outside of the server
-        ordersPending[pending_order_uuid] = {time: Date.now(), address: address, session_id: req.session.id, product_id: product_id, amount: amount, expected: expected_price_BTC};
-        res.redirect("/orderPending?uuid="+pending_order_uuid);
-    } 
-});
-
-app.get("/orderPending", async (req, res) => {
-    if (!req.session) res.redirect("/login");
-    const { uuid } = req.query;
-    if (!isItReal(uuid)) return res.redirect("/error?message=this shouldnt happen, unless you did something manually or the server broke. try again pls or lmk!");
-    const order_in_question = ordersPending[uuid];
-    if (order_in_question && order_in_question.session_id == req.session.id) { // Check if such order exists, and then if it belongs to the guy in question
-        const amount_recieved = await getTotalReceivedByAddress(order_in_question.address);
-        if (amount_recieved >= order_in_question.expected) {
-            const product = getProductDataById(order_in_question.product_id);
-            // now, get the data abt the product, create the product, and then make a 
-            // product_id, user_id, amount, vendor_id, estimated_arrival
-            createOrder(product.id, order_in_question.user_id, order_in_question.amount, product.vendor_id, "1/1/1975");
-            return res.redirect("/orderComplete");
-        } else {
-            return res.render("order_pending", {address, uuid, amount_recieved, amount_expected: expected});
-        }
-    } else {
-        // Order doesnt exist. We say so
-        const problem_order_uuid = await generateUUID();
-        logger.warn("Hey! An order that didnt exist (timed out?) was attempted to be accessed. The problem order uuid was "+problem_payment_uuid+" .")
-        return res.redirect("/error?message=hm. this order doesnt seem to exist. It is possible that the order timed out (the payment didn't go through in time). Please try again. <br> IF YOU PAYED MONEY ALREADY AND IT DID THIS PROBLEM: your id is "+problem_payment_uuid+" . Save this.  Also save the BTC address to which you paid the money. Contact me with it and we will work something out.")
-    }
-});
-
-app.get("/orderComplete", (req, res) => {
-    const { uuid } = req.query;
-    if (!req.session) res.redirect("/login");
-    const order_in_question = ordersPending[uuid];
-    if (order_in_question && order_in_question.session_id == req.session.id) {
-        delete ordersPending[uuid];
-        return res.render("order_complete");
-    }
-    res.render("order_incomplete");
-});
 
 
-app.get('/createOrder', (req, res) => {
+
+// app.get("/orderComplete", (req, res) => {
+//     const { uuid } = req.query;
+//     if (!req.session) res.redirect("/login");
+//     const order_in_question = ordersPending[uuid];
+//     if (order_in_question && order_in_question.session_id == req.session.id) {
+//         delete ordersPending[uuid];
+//         return res.render("order_complete");
+//     }
+//     res.render("order_incomplete");
+// });
+
+
+app.get('/createOrder', async (req, res) => {
     if (!req.session.username) return res.redirect("/login");
     const product_id = req.query.product_id;
     if (!product_id) return res.redirect("/error?message=Please go back and pick a valid product id");
-    const product = getProductDataById(product_id);
+    const product = await getProductDataById(product_id);
     const product_decrypted = {
         description: decrypt(product.description),
         price: decrypt(product.price),
         notes: decrypt(product.notes),
         name: decrypt(product.name),
         image: decrypt(product.image),
-        system_price: system_price
+        system_price: decrypt(product.system_price)
     };
     
-    res.render("create_order", {product: product_decrypted, message:req.query.message?req.query.message : ""});
+    res.render("create_order", {product: product_decrypted, product_id: product.id, message:req.query.message?req.query.message : ""});
 });
+
+
+app.get("/confirmOrder", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    if (Object.keys(ordersPending).length > 20) res.redirect("/error?message=Too many pending orders at this time. Please try again later.");
+    const { product_id, amount, shipping_address }  = req.query;
+    const product_data = await  getProductDataById(product_id);
+    if (!amount || isNaN(amount) || amount <= 0) {
+        return res.redirect("/error?message=Invalid amount specified.");
+    }
+    
+    const USD_price = decrypt(product_data.system_price) * amount;
+    const BTC_price = await convertUsdToBtc(USD_price);
+    const address = decrypt(product_data.address);
+
+    // amount, name, price, system price, USD_price, BTC_price, product_id
+    res.render("order_confirm", {amount, USD_price, BTC_price, product_id, shipping_address, address: address, name: decrypt(product_data.name), price: decrypt(product_data.price), system_price: decrypt(product_data.system_price)});
+});
+
+app.post("/executeCreateOrder", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const { product_id, amount, shipping_address } = req.body;
+    if (!(product_id && amount && shipping_address)) res.redirect("/error?message=You did not provide enough information to place an order.")
+
+    for (let i=0; i<Object.keys(ordersPending).length; i++) {
+        if (ordersPending[i].session_id == req.session.id) return res.redirect("/error?message=Um you already have a pending order. Wait like 5 mins for it to clear out and then try again i guess");
+    }
+
+    if ((isItReal(product_id) && isItReal(amount) && isItReal(shipping_address))) {
+        // const address = generateNewAddress(); The monumental step where I sacrifice money for convenience and privacy happens now, january 9, 2025 at 17:29 pm
+        
+        const product = await getProductDataById(product_id);
+        const address = decrypt(product.address);
+        const system_price = decrypt(product.system_price);
+        const expected_price_USD = system_price * amount;
+        const expected_price_BTC = await convertUsdToBtc(expected_price_USD);
+        const pending_order_uuid = generateUUID(); // We use a dict because 1) we can check the existence of a uuid in o(1) time, and 2) can reference pending orders and keep track of them from outside of the server
+        ordersPending[pending_order_uuid] = {time: Date.now(), address: address, user_id: req.session.user_id, shipping_address: shipping_address, session_id: req.session.id, product_id: product_id, amount: amount, expected: expected_price_BTC};
+        res.redirect("/orderPending?uuid="+pending_order_uuid);
+    } 
+});
+
+app.get("/orderPending", async (req, res) => {
+    if (!req.session) return res.redirect("/login");
+    const { uuid } = req.query;
+    if (!isItReal(uuid)) return res.redirect("/error?message=this shouldnt happen, unless you did something manually or the server broke. try again pls or lmk!");
+    const order_in_question = ordersPending[uuid];
+    console.log(order_in_question);
+    if (order_in_question && order_in_question.session_id == req.session.id && order_in_question.user_id == req.session.user_id) { // Check if such order exists, and then if it belongs to the guy in question
+
+        const amount_recieved = await getTotalReceivedByAddress(order_in_question.address, 5); // check the total from the past 5 minutes
+        console.log(amount_recieved);
+        const product = await getProductDataById(order_in_question.product_id);
+        const address =  decrypt(product.address);
+        if (amount_recieved >= order_in_question.expected) {
+            
+            // now, get the data abt the product, create the product, and then make a 
+            // product_id, user_id, amount, vendor_id, estimated_arrival
+            createOrder(product.id, order_in_question.user_id, order_in_question.amount, product.vendor_id, order_in_question.shipping_address);
+            return res.redirect("/orderComplete");
+        } else {
+            return res.render("order_pending", {address, uuid, amount_recieved, amount_expected: order_in_question.expected});
+        }
+    } else {
+        // Order doesnt exist. We say so
+        const problem_order_uuid = await generateUUID();
+        logger.warn("Hey! An order that didnt exist (timed out?) was attempted to be accessed. The problem order uuid was "+problem_order_uuid+" .")
+        return res.redirect("/error?message=hm. this order doesnt seem to exist. It is possible that the order timed out (the payment didn't go through in time). Please try again. <br> IF YOU PAYED MONEY ALREADY AND IT DID THIS PROBLEM: your id is "+problem_order_uuid+" . Save this.  Also save the BTC address to which you paid the money. Contact me with it and we will work something out.")
+    }
+});
+
+app.get("/dispatchOrder", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    if (!req.session.vendor_id) return res.redirect("/vendorship");
+    const { order_id } = req.query;
+    if (!isItReal(order_id)) return res.redirect("/error?message=Submit a valid order id");
+    const valid = await orderBelongsToVendor(order_id, req.session.vendor_id);
+    if (!valid) return res.redirect("/info?message=you do not have access to this order");
+    res.render("dispatch_order", { order_id: order_id });
+})
+
+app.get("/vendorOrders", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    if (!req.session.vendor_id) return res.redirect("/vendorship");
+    const message = req.query.message ? req.query.message : "";
+    const hisOrders = await getOrdersForVendor(req.session.vendor_id);
+    console.log(JSON.stringify(hisOrders))
+    const render_orders = [];
+    for (let order of hisOrders) {
+        render_orders.push({
+            id: order.id,
+            product_id: decrypt(order.product_id),
+            user_id: decrypt(order.user_id),
+            amount: decrypt(order.amount),
+            estimated_arrival: isItReal(order.estimated_arrival) ? decrypt(order.estimated_arrival) : "",
+            created_time: order.created_time,
+            shipment_proof: isItReal(order.shipment_proof) ? decrypt(order.shipment_proof) : "",
+            received: order.received,
+            address: decrypt(order.address),
+        });
+    }
+    const shippedOrders = render_orders.filter(order => isItReal(order.estimated_arrival));
+    const notShippedOrders = render_orders.filter(order => !isItReal(order.estimated_arrival));
+    
+
+    // Pass these two arrays to the EJS template
+    res.render("vendor_orders", { 
+        shippedOrders: shippedOrders, 
+        notShippedOrders: notShippedOrders,
+        message: message
+    });
+});
+
+
+app.post("/executeDispatchOrder", upload.single('shipment_proof'), async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    if (!req.session.vendor_id) return res.redirect("/vendorship");
+
+    const { expected_arrival, order_id } = req.body;
+
+    // Ensure required fields are provided
+    if (!(isItReal(expected_arrival) && isItReal(order_id.toString()))) {
+        return res.redirect("/error?message=Something broke. Try again or contact an admin");
+    }
+
+    // Validate if the shipment proof file exists in the request
+    if (!req.file) {
+        return res.redirect("/error?message=Shipment proof image is required");
+    }
+
+    // Convert image to pure base64 string (without data URL prefix)
+    const base64Image = req.file.buffer.toString('base64');
+
+    // Prepare the base64 data to be passed to dispatchOrder
+    const shipmentProofBase64 = base64Image;  // Just the pure base64 string
+
+    // Validate if the order belongs to the vendor
+    const valid = await orderBelongsToVendor(order_id, req.session.vendor_id);
+    if (!valid) return res.redirect("/info?warning=You do not have access to this order");
+
+    // Call the function to dispatch the order
+    if (dispatchOrder(expected_arrival, shipmentProofBase64, order_id, req.session.vendor_id) == -1) {
+        const problem_uuid = generateUUID();
+        logger.error("Problems happened while dispatching an order.");
+        return res.redirect("/error?Message=something broke. Try again or contact an admin.<br>Your error code is: " + problem_uuid + " . Please keep this code if you intend to contact an admin.");
+    } else {
+        res.redirect("/vendorOrders?message=Successfully dispatched the order.");
+    }
+});
+
+app.get("/myOrders", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const myOrders = await getUsersOrders(req.session.user_id);
+    const message = req.query.message ? req.query.message : "";
+    if (myOrders == -1) {
+        let error_uuid = generateUUID();
+        logger.error("Error getting all orders for a specific user. ERROR " + error_uuid + "   \n\n"+e);
+        return res.redirect("/error?message=Problem retreiving your orders. Please contact an admin. <br>Your error id is " + error_uuid + " .  Do not lose this if you intend to contact an admin.")
+    }
+    let render_orders = [];
+    for (let order of myOrders) {
+        let product_id = await decrypt(order.product_id);
+        let product_data = await getProductDataById(product_id);
+        let product_name = decrypt(product_data.name);
+        render_orders.push({
+            amount: decrypt(order.amount),
+            estimated_arrival: isItReal(order.estimated_arrival) ? decrypt(order.estimated_arrival) : "",
+            shipment_proof: isItReal(order.shipment_proof) ? decrypt(order.shipment_proof) :  "",
+            address: decrypt(order.address),
+            product_name: product_name
+        });
+    }
+    res.render("my_orders", {orders: render_orders, message});
+    
+})
+
+app.post("/setReceived", async (req, res) => {
+    if (!req.session.username) return res.redirect("/login");
+    const { order_id } = req.body;
+    if (!isItReal(order_id.toString())) res.redirect("/error?message=The order ID provided was problematic;");
+    const order_data = await getOrderDataById(order_id);
+    const order_product_id = decrypt(order_data.product_id);
+    const result = setReceivedOrder(order_id, req.session.user_id);
+    if (result == -1) {
+        return res.redirect("/error?message= an error ocurred while deleting the order from the system. It is possible that the order doesn't exist or is  not associated with you.")
+    }
+
+    res.redirect(`/myOrders?message=You can now one (1) review on the <a href="/product?id=${order_product_id}">product</a>.`)
+})
 
 
 app.get("/vendorship", (req, res) => {
@@ -2343,7 +2662,7 @@ app.post("/executeCreateProduct", upload.single('image'), async (req, res) => {
 
 
 
-app.get("/product", (req, res) => {
+app.get("/product", async (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
@@ -2351,7 +2670,7 @@ app.get("/product", (req, res) => {
     const product_id = req.query.product_id ? req.query.product_id : "";
     if (!isItReal(product_id)) return res.redirect("/");
 
-    const productData = getProductDataById(product_id);
+    const productData = await getProductDataById(product_id);
     const stringProductData = JSON.stringify(productData);
     const decryptedDescription = decrypt(productData.description);
     const decryptedPrice = decrypt(productData.price);
@@ -2385,7 +2704,7 @@ app.get("/product", (req, res) => {
     res.render("product", {id: productData.id, vendor_id: productData.vendor_id, vendor_name: vendorName, created_time: created_time, description: decryptedDescription, price: decryptedPrice, name: decryptedName, image: decryptedImage, reviews: renderReviews, buys: decryptedBuys, tags: decryptedTags, notes: decryptedNotes, system_payments: systemPayments});
 });
 
-app.get("/editProduct", (req, res) => {
+app.get("/editProduct", async (req, res) => {
     if (!req.session.username) {
         return res.redirect("/login");
     }
@@ -2395,7 +2714,7 @@ app.get("/editProduct", (req, res) => {
 
     const product_id = req.query.product_id;
 
-    const productData = getProductDataById(product_id);
+    const productData = await getProductDataById(product_id);
 
     const decryptedDescription = decrypt(productData.description);
     const decryptedPrice = decrypt(productData.price);
@@ -2617,6 +2936,7 @@ user1 : user1
         updateUsernameToId()
         updateRoomToId();
         rePopulateTrieAndDict();
+        // createOrder(7, 7, 2, 7, "1/7/1776", "address")
 
     
         

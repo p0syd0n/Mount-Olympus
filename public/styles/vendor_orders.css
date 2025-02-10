@@ -1,0 +1,63 @@
+/* forum.css */
+body {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Use the same gradient from main.css */
+  color: #e0f7fa; /* Soft cyan for overall text color */
+}
+
+/* Order styling */
+.order {
+  background-color: #333; /* Dark background for each order */
+  color: #e0f7fa; /* Light cyan text */
+  border-radius: 8px;
+  margin-bottom: 20px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.order h3 {
+  color: #b0e0e6; /* Light steel blue for titles */
+}
+
+.order h4 {
+  color: #d1d1d1; /* Light gray for order details */
+}
+
+/* Distinguishing shipped and not shipped orders */
+h1 {
+  color: #007bff; /* Blue for section headings */
+  margin-top: 40px;
+}
+
+section#main {
+  padding: 20px;
+}
+
+.order.shipped {
+  background-color: #4caf50; /* Green background for shipped orders */
+}
+
+.order.not-shipped {
+  background-color: #f44336; /* Red background for not shipped orders */
+}
+
+/* Button styling */
+button {
+  background-color: #2c2c2c; /* Dark background for buttons */
+  color: #e0f7fa; /* Light cyan text for contrast */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+  border-radius: 5px; /* Rounded corners */
+  padding: 10px 15px; /* Padding for button size */
+  font-size: 1em; /* Consistent font size */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+}
+
+button:hover {
+  background-color: rgba(255, 255, 255, 0.1); /* Light background on hover */
+  color: #ffffff; /* Brighter text on hover */
+  transform: translateY(-2px); /* Slight lift effect on hover */
+}
+
+button:active {
+  transform: translateY(1px); /* Slight push effect when active */
+}

@@ -1,23 +1,5 @@
-// Define custom logging levels
-const customLevels = {
-    levels: {
-        csp_violation: 0,
-        fatal: 0,  // Critical system errors
-        error: 1,  // Regular errors
-        warn: 2,   // Warnings
-        info: 3,   // General info messages
-        verbose: 4, // More detailed messages
-        debug: 5,  // Debugging information
-        trace: 6   // Very detailed tracing information
-    },
-    colors: {
-        csp_violation: 'red',
-        fatal: 'red',
-        error: 'red',
-        warn: 'yellow',
-        info: 'green',
-        verbose: 'cyan',
-        debug: 'blue',
-        trace: 'magenta'
-    }
-};
+-----BEGIN PUBLIC KEY----- MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgH0k4XuHXDxMjMogBHYHNFeic1aH cj80cSqerPu1VQRgv5sFWlnx4QGddxUFL6rkZhOiAwh/cZ2mfWfStIN7IEEGstVq PmhsqzvS9FDVi3eX0hXob+WhDUxnK40FJhyZ6rsbJMtNnrkBQQ+sTcTfdtPpj75T sv3CXZP8WEtWRh9vAgMBAAE= -----END PUBLIC KEY-----
+
+
+
+-----BEGIN RSA PRIVATE KEY----- MIICWwIBAAKBgH0k4XuHXDxMjMogBHYHNFeic1aHcj80cSqerPu1VQRgv5sFWlnx 4QGddxUFL6rkZhOiAwh/cZ2mfWfStIN7IEEGstVqPmhsqzvS9FDVi3eX0hXob+Wh DUxnK40FJhyZ6rsbJMtNnrkBQQ+sTcTfdtPpj75Tsv3CXZP8WEtWRh9vAgMBAAEC gYA9NqIY44BJeoRPhlPITAPdbfgO9lf69LL6Tv18bhl098IhmP+2CWuvd4+9N3k2 lVwc9F2ZdYVkwQCMnXNw8PQ4S16TsvoJyX8gSm7axSCvYfRs2Msz0/4A4cA0KWBb eUC4XWVU3D4HptUwE8MCnoh83OoAbrCV+UdfnYVhSoQL2QJBALeJU8sLRhz/iOqT lsOIKoGgTFjolY6e79GscbOcaWf06JJRnNltcTdMHZvBjRtXSfimvyZZX+KYmAfD Y3RaB9sCQQCujaGl/WAsOPgLSl1zlFe6BCZ1Gm4EYKKW2G2lsBa7pDX48I0UquN/ I63VpuUwWHdc6S19NzVr1lJ5YI1z0dT9AkEAnP7/imPuace8Wsw83q2PjqqMJFFv /Tu/cN/NsxJMp/w7JU5imSqg+ehGO4HpLkYQpH4ebLNu7eoRwjJE1LZemQJAP6U0 w6lXX8iF6Nf8qx/zvMe2ngw9ASubHRVdJYTHRTPi2hob1uVYfgssXzKzbqVTIHWF OJrgx6kl+UvTR9/CoQJARJ3W5gPYxcdWQZR6+ct79cQ9qMoxmA0UJHAcEjyDdUDk F32i17vIRWG/epHA6WyJ5FWYxEhuCgoIcE/BrAtQLQ== -----END RSA PRIVATE KEY-----

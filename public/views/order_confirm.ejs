@@ -1,0 +1,27 @@
+<html>
+    <head>
+        <title>Confirm your order</title>
+        <link rel="stylesheet" href="/styles/main.css">
+        <link rel="stylesheet" href="/styles/order_confirm.css">
+
+    </head>
+    <body>
+        <%- include('nav', { activePage: 'marketplace' }) %>
+        <section id="main">
+            <h1>You have requested an order for <%= amount %> of <%= name %>. <%= name %> is currently selling for <%= price %> ( <%= system_price %> ) ( If those numbers do not match or make sense, please contact an administrator or the vendor)</h1>
+            <h1>Your requested order has you paying <%= USD_price %> as <%= BTC_price %> BTC.</h1>
+            <h1>Confirm and edit your order, or walk away:</h1>
+            <form action="/executeCreateOrder" method="POST">
+              <input type="hidden" name="product_id" value="<%= product_id %>">
+              <h3>Product: <%= name %></h3>
+              <label for="amount">Amount:</label>
+              <input type="number" name="amount" value="<%= amount %>" required>
+              <br>
+              <label for="shipping_address">Shipping address:</label>
+              <input type="text" name="shipping_address" value="<%= shipping_address%>" required>
+              <button type="submit">Go!</button>
+          </form>
+          
+        </section>
+    </body>
+</html>

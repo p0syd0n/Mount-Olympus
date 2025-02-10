@@ -1,0 +1,87 @@
+/* General Styles */
+body {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(74, 144, 226, 0.8), rgba(255, 0, 0, 0.5)); /* Similar gradient */
+  color: #e0f7fa; /* Soft cyan for overall text color */
+}
+
+#my-orders {
+  padding: 20px;
+}
+
+.message {
+  color: #ff4c4c; /* Red for error messages */
+}
+
+.message_success {
+  color: #4caf50; /* Green for success messages */
+}
+
+/* Orders Container */
+.orders-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.order-box {
+  background-color: #2c2c2c;
+  border-radius: 8px;
+  padding: 15px;
+  margin-right: 20px;
+  width: 250px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease;
+  color: #e0f7fa;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.order-box:hover {
+  transform: translateY(-5px);
+}
+
+.order-box h3 {
+  font-size: 1.2em;
+  margin-bottom: 5px;
+}
+
+.amount, .arrival-date, .shipment-proof, .address {
+  font-size: 1em;
+  color: #d1d1d1; /* Light gray for order details */
+  margin-bottom: 5px;
+}
+
+.amount {
+  color: #ffeb3b; /* Yellow for amount */
+}
+
+.arrival-date {
+  color: #4caf50; /* Green for arrival date */
+}
+
+.shipment-proof {
+  color: #9e9e9e; /* Light gray for shipment proof */
+  text-align: center;
+}
+
+.shipment-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.address {
+  font-size: 0.9em;
+  color: #b0e0e6; /* Light blue for address */
+}
+
+@media (max-width: 768px) {
+  .order-box {
+      width: 100%;
+      margin-bottom: 10px;
+  }
+}
